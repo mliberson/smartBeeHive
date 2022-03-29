@@ -31,7 +31,7 @@ char str2[] = ">> USC EE459L <<";
 char str3[] = ">> at328-6.c <<<";
 char str4[] = "-- April 11, 2011 --";
 
-#define FOSC 9830400		// Clock frequency
+#define FOSC 7372800		// Clock frequency
 #define BAUD 19200              // Baud rate used by the LCD
 #define MYUBRR FOSC/16/BAUD-1   // Value for UBRR0 register
 
@@ -69,7 +69,7 @@ void lcd_init()
 
 /*
   moveto - Move the cursor to the row and column given by the arguments.
-  Row is 0 or 1, column is 0 - 15.
+  Row is 0 - 3, column is 0 - 19.
 */
 void lcd_moveto(unsigned char row, unsigned char col)
 {
