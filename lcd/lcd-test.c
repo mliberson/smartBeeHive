@@ -32,7 +32,7 @@ char str3[] = ">> at328-6.c <<<";
 char str4[] = "-- April 11, 2011 --";
 
 #define FOSC 7372800		// Clock frequency
-#define BAUD 19200              // Baud rate used by the LCD
+#define BAUD 9600              // Baud rate used by the LCD
 #define MYUBRR FOSC/16/BAUD-1   // Value for UBRR0 register
 
 int main(void) {
@@ -63,20 +63,29 @@ void lcd_init()
 {
     _delay_ms(250);             // Wait 500msec for the LCD to start up
     _delay_ms(250);
-    sci_out(0xfe);              // Clear the screen
-    sci_out(0x58);
+
+    sci_out(0xFE);              // Turn screen on
+    sci_out(0x42);
+
+    sci_out(0xFE);              // Clear the screen
+    sci_out(0x51);
+
+    sci_out(0xFE);
+    sci_out(0x46);
+
+    sci_out(0xFE);
+    sci_out(0x4B);
 }
 
 /*
   moveto - Move the cursor to the row and column given by the arguments.
-  Row is 0 - 3, column is 0 - 19.
+  Row is 0 or 1, column is 0 - 15.
 */
 void lcd_moveto(unsigned char row, unsigned char col)
 {
     sci_out(0xfe);              // Set the cursor position
-    sci_out(0x47);
-    sci_out(col + 1);
-    sci_out(row + 1);
+    sci_out(0x45);
+    sci_out(row * 20 + col);
 }
 
 
@@ -97,6 +106,7 @@ void lcd_stringout(char *str)
 void sci_init(void) {
     UBRR0 = MYUBRR;          // Set baud rate
     UCSR0B |= (1 << TXEN0);  // Turn on transmitter
+    UCSR0B |= (1 << RXEN0 ); // Turn on receiver
     UCSR0C = (3 << UCSZ00);  // Set for asynchronous operation, no parity, 
                              // one stop bit, 8 data bits
 }
@@ -120,4 +130,10 @@ void sci_outs(char *s)
 
     while ((ch = *s++) != '\0')
         sci_out(ch);
+}
+
+char serial_in ()
+{
+while ( !( UCSR0A & (1 << RXC0 )) );
+return UDR0 ;
 }
