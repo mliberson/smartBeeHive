@@ -134,9 +134,5 @@ void init_pcinterrupt(void)
 
 ISR(PCINT1_vect)
 {
-    PORTB |= (1 << PB5);          // Use PB5 as a flag we can track with
-                                  // the scope to detect ISR execution
-    //isrs++;
     check_encoder();
-    PORTB &= ~(1 << PB5);         // Turn flag off
 }
