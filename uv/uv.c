@@ -26,7 +26,7 @@ int main (void)
     {
         uv_sample = adc_sample(UV_CHAN);        // get sample
         char buff[20];
-        snprintf(buff, 20, "%d", uv_sample);
+        snprintf(buff, 20, "%d\n", uv_sample);
         sci_outs(buff);                      // output sample to computer
         _delay_ms(500);
     }

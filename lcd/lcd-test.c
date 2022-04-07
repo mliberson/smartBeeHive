@@ -26,7 +26,7 @@ void sci_init(void);
 void sci_out(char);
 void sci_outs(char *);
 
-char str1[] = "12345678901234567890";
+char str1[] = "1234567890";
 char str2[] = ">> USC EE459L <<";
 char str3[] = ">> at328-6.c <<<";
 char str4[] = "-- April 11, 2011 --";
@@ -41,14 +41,14 @@ int main(void) {
     
     lcd_init();                 // Initialize the LCD
 
-    lcd_moveto(0, 0);
-    lcd_stringout(str1);        // Print string on line 1
-    lcd_moveto(1, 2);
-    lcd_stringout(str2);        // Print string on line 2
-    lcd_moveto(2, 2);
-    lcd_stringout(str3);        // Print string on line 3
-    lcd_moveto(3, 0);
-    lcd_stringout(str4);        // Print string on line 4
+    lcd_moveto(0,0);
+    lcd_stringout(str1);
+    lcd_moveto(1,1);
+    lcd_stringout(str2);
+    lcd_moveto(2,2);
+    lcd_stringout(str3);
+    lcd_moveto(3,3);
+    lcd_stringout(str4);
 
     while (1) {                 // Loop forever
     }
@@ -63,18 +63,8 @@ void lcd_init()
 {
     _delay_ms(250);             // Wait 500msec for the LCD to start up
     _delay_ms(250);
-
-    sci_out(0xFE);              // Turn screen on
-    sci_out(0x42);
-
-    sci_out(0xFE);              // Clear the screen
+    sci_out(0xfe);              // Clear the screen
     sci_out(0x51);
-
-    sci_out(0xFE);
-    sci_out(0x46);
-
-    sci_out(0xFE);
-    sci_out(0x4B);
 }
 
 /*
@@ -83,9 +73,28 @@ void lcd_init()
 */
 void lcd_moveto(unsigned char row, unsigned char col)
 {
+    char ch;
+    switch(row) 
+    {
+      case 0:
+        ch = 0x00;
+        break;
+      case 1:
+        ch = 0x40;
+        break;
+      case 2:
+        ch = 0x14;
+        break;
+      case 3:
+        ch = 0x54;
+        break;
+    }
+    ch += col;
+    
     sci_out(0xfe);              // Set the cursor position
     sci_out(0x45);
-    sci_out(row * 20 + col);
+    sci_out(ch);
+    _delay_ms(1000);             // Wait 500msec for the LCD to start up
 }
 
 
