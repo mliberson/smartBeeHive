@@ -1,14 +1,10 @@
 #include <avr/io.h>
 #include <util/delay.h>
+#include "serial.h"
 
-void serial_init(unsigned short);
-void sci_outs(char *);
-void serial_out(char);
-char serial_in(void);
-
-void serial_init(unsigned short ubrr)
+void serial_init()
 {
-    UBRR0 = ubrr;               // set baud
+    UBRR0 = MYUBRR;               // set baud
     UCSR0B |= (1 << TXEN0);     // turn on Tx
     UCSR0B |= (1 << RXEN0);     // turn on Rx
     UCSR0C |= (3 << UCSZ00);    // async, no parity, one stop, 8 data

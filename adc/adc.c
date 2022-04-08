@@ -5,9 +5,6 @@
 #include <avr/io.h>
 #include "adc.h"
 
-#define ADC_MASK    0b1111
-#define ADC_PRSC    0b111   // Divide by 128
-
 void adc_init(void)
 {
     ADMUX |= (1 << REFS0);          // Set high voltage reference = VCC

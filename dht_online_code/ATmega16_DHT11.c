@@ -8,7 +8,7 @@
 #include <util/delay.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "serial.h"
+#include "../lcd/serial.h"
 #define DHT11_PIN 2
 
 #define FOSC 7372800		// Clock frequency
@@ -53,50 +53,53 @@ uint8_t Receive_data()			/* receive data */
 	return c;
 }
 
-int main(void)
-{	
-	char data[5];
-	serial_init(MYUBRR);
+/* commented this out to get rid of a "multiple definitions of main" warning when
+*	compiling top.c
+*/
+// int main(void)
+// {	
+// 	char data[5];
+// 	serial_init();
 	
-    while(1)
-	{	
-		Request();		/* send start pulse */
-		Response();		/* receive response */
-		I_RH=Receive_data();	/* store first eight bit in I_RH */
-		D_RH=Receive_data();	/* store next eight bit in D_RH */
-		I_Temp=Receive_data();	/* store next eight bit in I_Temp */
-		D_Temp=Receive_data();	/* store next eight bit in D_Temp */
-		CheckSum=Receive_data();/* store next eight bit in CheckSum */
-        sci_outs("poop");
+//     while(1)
+// 	{	
+// 		Request();		/* send start pulse */
+// 		Response();		/* receive response */
+// 		I_RH=Receive_data();	/* store first eight bit in I_RH */
+// 		D_RH=Receive_data();	/* store next eight bit in D_RH */
+// 		I_Temp=Receive_data();	/* store next eight bit in I_Temp */
+// 		D_Temp=Receive_data();	/* store next eight bit in D_Temp */
+// 		CheckSum=Receive_data();/* store next eight bit in CheckSum */
+//         serial_outs("poop");
 		
-		if ((I_RH + D_RH + I_Temp + D_Temp) != CheckSum)
-		{
-			sci_outs("Error");
-		}
+// 		if ((I_RH + D_RH + I_Temp + D_Temp) != CheckSum)
+// 		{
+// 			serial_outs("Error");
+// 		}
 		
-		else
-		{	
-			itoa(I_RH,data,10);
-			sci_outs(data);
-			sci_outs(".");
+// 		else
+// 		{	
+// 			itoa(I_RH,data,10);
+// 			serial_outs(data);
+// 			serial_outs(".");
 			
-			itoa(D_RH,data,10);
-			sci_outs(data);
-			sci_outs("%");
+// 			itoa(D_RH,data,10);
+// 			serial_outs(data);
+// 			serial_outs("%");
 
-			itoa(I_Temp,data,10);
-			sci_outs(data);
-			sci_outs(".");
+// 			itoa(I_Temp,data,10);
+// 			serial_outs(data);
+// 			serial_outs(".");
 			
-			itoa(D_Temp,data,10);
-			sci_outs(data);
-			sci_outs("C ");
+// 			itoa(D_Temp,data,10);
+// 			serial_outs(data);
+// 			serial_outs("C ");
 			
-			itoa(CheckSum,data,10);
-			sci_outs(data);
-			sci_outs(" ");
-		}
+// 			itoa(CheckSum,data,10);
+// 			serial_outs(data);
+// 			serial_outs(" ");
+// 		}
 				
-	_delay_ms(2000);
-	}	
-}
+// 	_delay_ms(2000);
+// 	}	
+// }

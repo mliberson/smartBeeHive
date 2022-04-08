@@ -1,7 +1,7 @@
 DEVICE     = atmega328p
 CLOCK      = 7372800
 PROGRAMMER = -c usbtiny -P usb
-OBJECTS    = adc.o serial.o uv.o
+OBJECTS    = lcd\serial.o lcd\lcd.o adc\adc.o dht_online_code\ATmega16_DHT11.o HX711-master\HX711.o uv\uv.o rotary_encoder\rotary_encoder.o top.o
 FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe0:m
 
 # Fuse Low Byte = 0xe0   Fuse High Byte = 0xd9   Fuse Extended Byte = 0xff

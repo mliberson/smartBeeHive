@@ -1,6 +1,11 @@
 /*********************************************************************
 *
 *       Adapted from the EE109 Rotary Encoder lab
+*       
+*       Gives you access to:
+*       - 'rot_new_state' = current state of encoder
+*       - 'rot_up' = flag indicating if state went "up" or "down"
+*       - 'rot_changed' = flag indicating if state has changed
 *
 *********************************************************************/
 
@@ -8,24 +13,15 @@
 #include <util/delay.h>
 #include <stdio.h>
 #include <avr/interrupt.h>
+#include "rotary_encoder.h"
 
-#define ROT1    PC5     // first pin of rotary encoder
-#define ROT2    PC1     // second pin of rotary encoder
-
-void check_encoder(void);
-void init_pcinterrupt(void);
-
-volatile unsigned char new_state, old_state;
-volatile unsigned char changed;
-volatile int count = 0;		// Count to display
-
-int main(void) {
+void rot_encoder_init(void)
+{
     unsigned char bits, a, b;
 
     PORTC |= (1 << ROT1 | 1 << ROT2); // Enable pull-ups on ROT1, ROT2
 
-    init_pcinterupt();          // Initialize pin change intterupt for rotary encoder
-    lcd_init();                 // Initialize the LCD
+    init_pcinterrupt();          // Initialize pin change intterupt for rotary encoder
 
     // Determine the intial state
     bits = PINC;
@@ -33,25 +29,15 @@ int main(void) {
     b = bits & (1 << ROT2);
 
     if (!b && !a)
-	old_state = 0;
+	rot_old_state = 0;
     else if (!b && a)
-	old_state = 1;
+	rot_old_state = 1;
     else if (b && !a)
-	old_state = 2;
+	rot_old_state = 2;
     else
-	old_state = 3;
+	rot_old_state = 3;
 
-    new_state = old_state;
-
-    while (1)
-    {
-        if (changed)
-        {
-	        changed = 0;
-            // `count` tells you current count
-            // `new_state` tells you current state
-        }
-    }
+    rot_new_state = rot_old_state;
 }
 
 /*
@@ -69,50 +55,49 @@ void check_encoder(void)
     a = bits & (1 << ROT1);
     b = bits & (1 << ROT2);
 
-    if (old_state == 0) {
+    if (rot_old_state == 0) {
 	if (a) {
-	    new_state = 1;
-	    count++;
+	    rot_new_state = 1;
+	    rot_up = 1;
 	}
 	else if (b) {
-	    new_state = 2;
-	    count--;
+	    rot_new_state = 2;
+	    rot_up = 0;
 	}
     }
-    else if (old_state == 1) {
+    else if (rot_old_state == 1) {
 	if (!a) {
-	    new_state = 0;
-	    count--;
+	    rot_new_state = 0;
+	    rot_up = 0;
 	}
 	else if (b) {
-	    new_state = 3;
-	    count++;
+	    rot_new_state = 3;
+	    rot_up = 1;
 	}
     }
-    else if (old_state == 2) {
+    else if (rot_old_state == 2) {
 	if (a) {
-	    new_state = 3;
-	    count--;
+	    rot_new_state = 3;
+	    rot_up = 0;
 	}
 	else if (!b) {
-	    new_state = 0;
-	    count++;
+	    rot_new_state = 0;
+	    rot_up = 1;
 	}
     }
     else {   // old_state = 3
 	if (!a) {
-	    new_state = 2;
-	    count++;
+	    rot_new_state = 2;
+	    rot_up = 1;
 	}
 	else if (!b) {
-	    new_state = 1;
-	    count--;
+	    rot_new_state = 1;
+	    rot_up = 0;
 	}
     }
 
-    if (new_state != old_state) {
-	changed = 1;
-	old_state = new_state;
+    if (rot_new_state != rot_old_state) {
+	rot_changed = 1;
     }
 }
 
@@ -125,7 +110,7 @@ void check_encoder(void)
     For port C: use PCIE1 and PCMSK1
     For port D: use PCIE2 and PCMSK2
 */
-void init_pcinterrupt(void)
+void init_pcinterrupt()
 {
 	PCICR |= (1 << PCIE1);  // Enable PCINT on Port C
 	PCMSK1 |= (1 << ROT1 | 1 << ROT2); // Interrupt on ROT1, ROT2

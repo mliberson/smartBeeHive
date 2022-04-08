@@ -1,0 +1,4 @@
+# Tell git which files to ignore
+
+# Don't send up .o files
+*.o

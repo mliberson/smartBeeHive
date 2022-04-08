@@ -1,0 +1,23 @@
+***********************************************************************
+** Text document for questions and comments as code gets messed with **
+***********************************************************************
+
+Are the values in the HX711 file the correct ones? Is gain definitely 128? Is calibration definitely 120?
+I want to compartmentalize as much info as possible, so I'd like to set these values in the .h file for the HX711.
+(Josh)
+
+The check_input() function in top.c might not work (pointers are weird with arudino defined ports)
+(Josh)
+
+top Makefile is also a bit clunky b/c idk how to force it to compile all the dependent .o files
+(Josh)
+
+Problem: I want to be able to use the rotary encoder in multiple different states. How do I differentiate them?
+For example, I'd like to use it to scroll on the options menu and to scroll on the sensor data display.
+(Josh)
+
+When compiling, you need to "make clean" then "make" (we should figure out how to work this into makefile)
+(Josh)
+
+As of 11:38 PM 4/7, all of the code compiles with one warning (i can't fix the warning)
+(Josh)
