@@ -12,6 +12,7 @@ The check_input() function in top.c might not work (pointers are weird with arud
 top Makefile is also a bit clunky b/c idk how to force it to compile all the dependent .o files
 (Josh)
 
+*** Update: I figured this one out. I just had to make different functions and indices for each menu ***
 Problem: I want to be able to use the rotary encoder in multiple different states. How do I differentiate them?
 For example, I'd like to use it to scroll on the options menu and to scroll on the sensor data display.
 (Josh)
@@ -21,3 +22,11 @@ When compiling, you need to "make clean" then "make" (we should figure out how t
 
 As of 11:38 PM 4/7, all of the code compiles with one warning (i can't fix the warning)
 (Josh)
+
+We should figure out a better way to store all the data. Maybe a map of data names to an array of recent readings? idk
+(Josh)
+
+Also need to figure out how to handle decimals. How are we storing these values?
+(Josh)
+
+As of 10:44 PM 4/8, all of the code compiles with two warnings (they're the same warning and I can't fix it)
