@@ -12,6 +12,7 @@ The check_input() function in top.c might not work (pointers are weird with arud
 top Makefile is also a bit clunky b/c idk how to force it to compile all the dependent .o files
 (Josh)
 
+*** Update #2: I figured out a way to use just one function with multiple sets of variables for each menu ***
 *** Update: I figured this one out. I just had to make different functions and indices for each menu ***
 Problem: I want to be able to use the rotary encoder in multiple different states. How do I differentiate them?
 For example, I'd like to use it to scroll on the options menu and to scroll on the sensor data display.
@@ -30,3 +31,10 @@ Also need to figure out how to handle decimals. How are we storing these values?
 (Josh)
 
 As of 10:44 PM 4/8, all of the code compiles with two warnings (they're the same warning and I can't fix it)
+(Josh)
+
+We need to input which pins the fans and heaters will be on and adjust the code a bit, but its pretty much done.
+(Josh)
+
+As of 7:38 PM 4/10, all of the code compiles with two warnings (same warning, still can't fix)
+(Josh)

@@ -14,9 +14,16 @@
 #define SCREEN_HEIGHT   4
 #define OPT_MENU_LEN    2
 #define READ_MENU_LEN   4
+#define SET_MENU_LEN    1
 #define INSTRN_SCRN_HT  2   // Refers to number of rows in home and reading screen
 
 #define ENTER_BTN       PD2
+#define HEAT_OUT        /*pin controlling heaters*/
+#define FAN_OUT         /*pin controlling fans*/
+
+#define MAX_TEMP_VAL    80
+#define MIN_TEMP_VAL    60
+#define DELTA_TEMP      3
 
 char *splash_screen[SCREEN_WIDTH] =  {"                    ",
                                       "      WELCOME       ",
@@ -29,19 +36,25 @@ char *home_screen[SCREEN_WIDTH] =    {"   PRESS TO SELECT  ",
 char *reading_screen[SCREEN_WIDTH] = {"  PRESS TO GO BACK  ",
                                       " SCROLL TO SEE MORE "};
 char *reading_menu[SCREEN_WIDTH];
+char *set_menu[SCREEN_WIDTH] =       {"Set Temperature     "};
+char *set_screen[SCREEN_WIDTH] =     {"SCROLL TO CAHNGE VAL",
+                                      "PRESS TO SELECT     "};
 
 enum states {HOME, DISP_READINGS, SET_PARAMS};
 unsigned char state;
-unsigned char options_menu_ind = 0, reading_menu_ind = 0;
+unsigned char options_menu_ind = 0, reading_menu_ind = 0, set_menu_ind = 0;
+unsigned char set_temp_val = 68;
+unsigned char set_flag = 0;
 struct Data system_data;
+struct Data op_conditions;
 
 void init_system(void);
-void update_options_menu(void);
-void update_readings_menu(void);
+void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_len);
 unsigned char check_input(uint8_t *reg, unsigned char bit);
 void get_samples(void);
 void display_readings(void);
 void create_readings_menu(void);
+void update_set_param_display(void);
 
 int main()
 {
@@ -53,19 +66,22 @@ int main()
     /* Initialize to HOME state */
     state = HOME;
     lcd_screen(home_screen, INSTRN_SCRN_HT);
-    update_options_menu();
+    update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN);
 
     /* Fill system_data with most recent data */
     get_samples();
 
     while(1)
     {
+        /*******************
+            STATE MACHINE
+         *******************/
         if(state == HOME)
         {
             /* DISPLAY UPDATES */
             if(rot_changed)
             {
-                update_options_menu();
+                update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN);
             }
 
             /* STATE TRANSITIONS */
@@ -77,11 +93,13 @@ int main()
                     state = DISP_READINGS;
                     create_readings_menu();                     // Construct Readings menu
                     lcd_screen(reading_screen, INSTRN_SCRN_HT); // Display the Readings screen instruction menu
-                    update_readings_menu();                     // Display the Readings menu to the user
+                    update_menu(reading_menu, &reading_menu_ind, READ_MENU_LEN);
                 }
                 else if(options_menu_ind == 1)
                 {
                     state = SET_PARAMS;
+                    lcd_screen(home_screen, INSTRN_SCRN_HT);
+                    update_menu(set_menu, &set_menu_ind, SET_MENU_LEN);
                 }
                 /* Can add new state transitions HERE when we get them */
                 else
@@ -95,7 +113,7 @@ int main()
             /* DISPLAY UPDATES */
             if(rot_changed)
             {
-                update_readings_menu();
+                update_menu(reading_menu, &reading_menu_ind, READ_MENU_LEN);
             }
 
             /* STATE TRANSITIONS */
@@ -103,13 +121,58 @@ int main()
             {
                 state = HOME;
                 lcd_screen(home_screen, INSTRN_SCRN_HT);
-                update_options_menu();
+                update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN);
             }
 
         }
         else if(state == SET_PARAMS)
         {
-            /* What params do we want to set? */
+            /* Scroll functionality */
+            if(rot_changed && !set_flag)
+            {
+                update_menu(set_menu, &set_menu_ind, SET_MENU_LEN);
+            }
+
+            /* Denote which paramter to change */
+            if(check_input(&PIND, ENTER_BTN))
+            {
+                set_flag = 1;
+                lcd_screen(set_screen, INSTRN_SCRN_HT);
+                update_set_param_display();
+            }
+
+            /* Change and select the desired parameter value */
+            if(set_flag)
+            {
+                if(rot_changed)
+                {
+                    if(rot_up) set_temp_val = 60 + (set_temp_val + 1) % (MAX_TEMP_VAL-MIN_TEMP_VAL);
+                    else set_temp_val = 60 + (set_temp_val - 1) % (MAX_TEMP_VAL - MIN_TEMP_VAL);
+                    update_set_param_display();
+                }
+                if(check_input(&PIND, ENTER_BTN))
+                {
+                    op_conditions.temperature = set_temp_val;   // will need to be made more generic for other conditions
+                    set_flag = 0;
+                    state = HOME;
+                    lcd_screen(home_screen, INSTRN_SCRN_HT);
+                    update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN);
+                }
+            }
+        }
+
+        /*******************
+            OUTPUT LOGIC
+         *******************/
+        /* turn on heaters or fans to change internal temperataure */
+        if(system_data.temperature < op_conditions.temperature - DELTA_TEMP)
+        {
+            // turn on heaters
+        }
+        else if(system_data.temperature > op_conditions.temperature + DELTA_TEMP)
+        {
+            // turn on fans
+            // maybe make this pwm? idk
         }
     }
 
@@ -127,34 +190,24 @@ void init_system()
     HX711_init(128);        // Initialize weight sensor
 }
 
-/* update_options_menu - creates scrolling effect when rotary
-    encoder is turned
+/* update_menu - Creates the scrolling effect for any given menu on the LCD 
+    Parameters:
+        - menu --> the array of strings to be scrolled through
+        - menu_ind --> the integer denoting which index of the array is selected
+        - menu_len --> the length of the array of strings denoted by 'menu'
 */
-void update_options_menu()
+void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_len)
 {
-    /* Get new options menu starting spot */
-    if(rot_up) options_menu_ind = (options_menu_ind + 1) % OPT_MENU_LEN;
-    else options_menu_ind = (options_menu_ind - 1) % OPT_MENU_LEN;
+    // Increment or decrement index based on rotary encoder movement
+    if(rot_up) *menu_ind = (*menu_ind + 1) % menu_len;
+    else *menu_ind = (*menu_ind - 1) % menu_len;
 
-    /* Print out new options menu */
+    // Print out the current menu
     int i;
     for(i = INSTRN_SCRN_HT; i < SCREEN_HEIGHT; i++)
     {
         lcd_moveto(i, 0);
-        lcd_stringout(options_menu[options_menu_ind+(i-INSTRN_SCRN_HT)]);
-    }
-}
-
-void update_readings_menu()
-{
-    if(rot_up) reading_menu_ind = (reading_menu_ind + 1) % READ_MENU_LEN;
-    else reading_menu_ind = (reading_menu_ind - 1) % READ_MENU_LEN;
-
-    int i;
-    for(i = INSTRN_SCRN_HT; i < SCREEN_HEIGHT; i++)
-    {
-        lcd_moveto(i, 0);
-        lcd_stringout(reading_menu[reading_menu_ind+(i-INSTRN_SCRN_HT)]);
+        lcd_stringout(menu[*menu_ind+(i-INSTRN_SCRN_HT)]);
     }
 }
 
@@ -219,4 +272,17 @@ void create_readings_menu()
     reading_menu[3] = buf;
     memset(buf, 0, SCREEN_WIDTH+1);
     
+}
+
+/* update_set_param_display - displays the paramter to be set and the
+    value the user is currently considering
+    NOTE: THIS FUNCTION CURRENTLY ONLY WORKS FOR TEMPERATURE
+*/
+void update_set_param_display()
+{
+    char buf[SCREEN_WIDTH+1];
+
+    sprintf(buf, "Temperature%9d", set_temp_val);
+    lcd_moveto(INSTRN_SCRN_HT, 0);
+    lcd_stringout(buf);
 }
