@@ -40,7 +40,7 @@ char *reading_screen[INSTRN_SCRN_HT]={"  PRESS TO GO BACK  ",
                                       " SCROLL TO SEE MORE "};
 char *reading_menu[READ_MENU_LEN];
 char *set_menu[SET_MENU_LEN] =       {"Set Temperature     "};
-char *set_screen[INSTRN_SCRN_HT] =   {"SCROLL TO CAHNGE VAL",
+char *set_screen[INSTRN_SCRN_HT] =   {"SCROLL TO CHANGE VAL",
                                       "PRESS TO SELECT     "};
 
 enum states {HOME, DISP_READINGS, SET_PARAMS};
