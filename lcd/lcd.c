@@ -68,3 +68,9 @@ void lcd_screen(char *str_arr[], unsigned char sz)
 
   }
 }
+
+void lcd_clear()
+{
+    serial_out(0xfe);              // Clear the screen
+    serial_out(0x51);
+}

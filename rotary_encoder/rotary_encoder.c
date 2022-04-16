@@ -96,8 +96,10 @@ void check_encoder(void)
 	}
     }
 
-    if (rot_new_state != rot_old_state) {
-	rot_changed = 1;
+    if (rot_new_state != rot_old_state)
+	{
+		rot_changed = 1;
+		rot_old_state = rot_new_state;
     }
 }
 

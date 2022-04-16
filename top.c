@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <avr/io.h>
 #include <util/delay.h>
 #include "lcd/serial.h"
@@ -12,12 +13,12 @@
 
 #define SCREEN_WIDTH    20
 #define SCREEN_HEIGHT   4
-#define OPT_MENU_LEN    2
+#define OPT_MENU_LEN    4
 #define READ_MENU_LEN   4
 #define SET_MENU_LEN    1
 #define INSTRN_SCRN_HT  2   // Refers to number of rows in home and reading screen
 
-#define ENTER_BTN       PD2
+#define ENTER_BTN       PB1
 #define HEAT_OUT        /*pin controlling heaters*/
 #define FAN_OUT         /*pin controlling fans*/
 
@@ -25,19 +26,21 @@
 #define MIN_TEMP_VAL    60
 #define DELTA_TEMP      3
 
-char *splash_screen[SCREEN_WIDTH] =  {"                    ",
+char *splash_screen[SCREEN_HEIGHT] = {"                    ",
                                       "      WELCOME       ",
                                       "    TO THE HIVE     ",
                                       "                    "};
-char *options_menu[SCREEN_WIDTH] =   {"SEE CURRENT READINGS",       // If changing the order of options menu
-                                      "  SET A PARAMETER   "};      // be sure to change order in state transitions below
-char *home_screen[SCREEN_WIDTH] =    {"   PRESS TO SELECT  ",
+char *options_menu[OPT_MENU_LEN] =   {"SEE CURRENT READINGS",       // If changing the order of options menu
+                                      "  SET A PARAMETER   ",
+                                      "POOPPEEPEEPEEPOOPPEE",
+                                      "TEST  TEST  TEST    "};      // be sure to change order in state transitions below
+char *home_screen[INSTRN_SCRN_HT] =  {"   PRESS TO SELECT  ",
                                       " SCROLL TO SEE MORE "};
-char *reading_screen[SCREEN_WIDTH] = {"  PRESS TO GO BACK  ",
+char *reading_screen[INSTRN_SCRN_HT]={"  PRESS TO GO BACK  ",
                                       " SCROLL TO SEE MORE "};
-char *reading_menu[SCREEN_WIDTH];
-char *set_menu[SCREEN_WIDTH] =       {"Set Temperature     "};
-char *set_screen[SCREEN_WIDTH] =     {"SCROLL TO CAHNGE VAL",
+char *reading_menu[READ_MENU_LEN];
+char *set_menu[SET_MENU_LEN] =       {"Set Temperature     "};
+char *set_screen[INSTRN_SCRN_HT] =   {"SCROLL TO CAHNGE VAL",
                                       "PRESS TO SELECT     "};
 
 enum states {HOME, DISP_READINGS, SET_PARAMS};
@@ -50,7 +53,7 @@ struct Data op_conditions;
 
 void init_system(void);
 void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_len);
-unsigned char check_input(uint8_t *reg, unsigned char bit);
+unsigned char check_input(unsigned char bit);
 void get_samples(void);
 void display_readings(void);
 void create_readings_menu(void);
@@ -60,11 +63,12 @@ int main()
 {
     /* Initialize all the hardware */
     init_system();
-    PORTD |= (1 << ENTER_BTN);  // Pull-up resistor for enter btn
+    PORTB |= (1 << ENTER_BTN);  // Pull-up resistor for enter btn
     _delay_ms(1000);            // Ensure everything is loaded properly
 
     /* Initialize to HOME state */
     state = HOME;
+    lcd_clear();
     lcd_screen(home_screen, INSTRN_SCRN_HT);
     update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN);
 
@@ -82,22 +86,25 @@ int main()
             if(rot_changed)
             {
                 update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN);
+                rot_changed = 0;
             }
 
             /* STATE TRANSITIONS */
             /* If enter btn is pressed, go to new state */
-            if(check_input(&PIND, ENTER_BTN))
+            if(check_input(ENTER_BTN))
             {
                 if(options_menu_ind == 0)
                 {
                     state = DISP_READINGS;
                     create_readings_menu();                     // Construct Readings menu
+                    lcd_clear();                                // Clear Screen
                     lcd_screen(reading_screen, INSTRN_SCRN_HT); // Display the Readings screen instruction menu
                     update_menu(reading_menu, &reading_menu_ind, READ_MENU_LEN);
                 }
                 else if(options_menu_ind == 1)
                 {
                     state = SET_PARAMS;
+                    lcd_clear();
                     lcd_screen(home_screen, INSTRN_SCRN_HT);
                     update_menu(set_menu, &set_menu_ind, SET_MENU_LEN);
                 }
@@ -114,12 +121,14 @@ int main()
             if(rot_changed)
             {
                 update_menu(reading_menu, &reading_menu_ind, READ_MENU_LEN);
+                rot_changed = 0;
             }
 
             /* STATE TRANSITIONS */
-            if(check_input(&PIND, ENTER_BTN))
+            if(check_input(ENTER_BTN))
             {
                 state = HOME;
+                lcd_clear();
                 lcd_screen(home_screen, INSTRN_SCRN_HT);
                 update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN);
             }
@@ -131,12 +140,14 @@ int main()
             if(rot_changed && !set_flag)
             {
                 update_menu(set_menu, &set_menu_ind, SET_MENU_LEN);
+                rot_changed = 0;
             }
 
             /* Denote which paramter to change */
-            if(check_input(&PIND, ENTER_BTN))
+            if(check_input(ENTER_BTN))
             {
                 set_flag = 1;
+                lcd_clear();
                 lcd_screen(set_screen, INSTRN_SCRN_HT);
                 update_set_param_display();
             }
@@ -146,15 +157,27 @@ int main()
             {
                 if(rot_changed)
                 {
-                    if(rot_up) set_temp_val = 60 + (set_temp_val + 1) % (MAX_TEMP_VAL-MIN_TEMP_VAL);
-                    else set_temp_val = 60 + (set_temp_val - 1) % (MAX_TEMP_VAL - MIN_TEMP_VAL);
+                    if(rot_up)
+                    {
+                        if(set_temp_val < MAX_TEMP_VAL) set_temp_val += 1;
+                    }
+                    else
+                    {
+                        if(set_temp_val > MIN_TEMP_VAL) set_temp_val -= 1;
+                    }
                     update_set_param_display();
+                    rot_changed = 0;
                 }
-                if(check_input(&PIND, ENTER_BTN))
+                if(check_input(ENTER_BTN))
                 {
                     op_conditions.temperature = set_temp_val;   // will need to be made more generic for other conditions
                     set_flag = 0;
                     state = HOME;
+                    lcd_clear();
+                    lcd_moveto(1,0);
+                    lcd_stringout("   PARAMETER SET!   ");
+                    _delay_ms(1000);
+                    lcd_clear();
                     lcd_screen(home_screen, INSTRN_SCRN_HT);
                     update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN);
                 }
@@ -199,15 +222,24 @@ void init_system()
 void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_len)
 {
     // Increment or decrement index based on rotary encoder movement
-    if(rot_up) *menu_ind = (*menu_ind + 1) % menu_len;
-    else *menu_ind = (*menu_ind - 1) % menu_len;
+    if(rot_up)
+    {
+        if(*menu_ind == (menu_len - 1)) *menu_ind = 0;
+        else *menu_ind += 1;
+    }
+    else
+    {
+        if(*menu_ind == 0) *menu_ind = menu_len - 1;
+        else *menu_ind -= 1;
+    }
 
     // Print out the current menu
-    int i;
+    unsigned char i, temp_ind;
     for(i = INSTRN_SCRN_HT; i < SCREEN_HEIGHT; i++)
     {
         lcd_moveto(i, 0);
-        lcd_stringout(menu[*menu_ind+(i-INSTRN_SCRN_HT)]);
+        temp_ind = (*menu_ind+(i-INSTRN_SCRN_HT)) % menu_len;
+        lcd_stringout(menu[temp_ind]);
     }
 }
 
@@ -218,19 +250,15 @@ void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_
         reg = 1 <== PINC
         reg = 2 <== PIND
 */
-unsigned char check_input(uint8_t *reg, unsigned char bit)
+unsigned char check_input(unsigned char bit)
 {
-    if((*reg & (1 << bit)) != 0)
+    if((PINB & (1 << bit)) != 0)
     {
-        // Debouncing
-        _delay_ms(5);
-        while((*reg & (1 << bit)) != 0);
-        _delay_ms(5);
         return 0;
     }
     // Debouncing
     _delay_ms(5);
-    while((*reg & (1 << bit)) == 0);
+    while((PINB & (1 << bit)) == 0);
     _delay_ms(5);
     return 1;
 }
@@ -241,6 +269,9 @@ unsigned char check_input(uint8_t *reg, unsigned char bit)
 void get_samples()
 {
     system_data.uv = get_uv_sample();
+    system_data.temperature = 0;
+    system_data.humidity = 0;
+    system_data.weight = 0;
     /* The accessor functions below need to be implemented */
     // system_data.temperature = get_temp_sample();
     // system_data.humidity = get_humidity_sample();
@@ -252,26 +283,24 @@ void get_samples()
 */
 void create_readings_menu()
 {
-    char buf[SCREEN_WIDTH+1];
-
+    char buf1[SCREEN_WIDTH+1],buf2[SCREEN_WIDTH+1],buf3[SCREEN_WIDTH+1],buf4[SCREEN_WIDTH+1];
     // Doesn't handle decimals right now
     /* Setup UV index string */
-    sprintf(buf, "UV Index:%d", system_data.uv);
-    reading_menu[0] = buf;
-    memset(buf, 0, SCREEN_WIDTH+1);
+    sprintf(buf1, "UV Index:%d     ", system_data.uv);
+    reading_menu[0] = malloc(strlen(buf1)+1);
+    strcpy(reading_menu[0],buf1);
     /* Setup Temperature string */
-    sprintf(buf, "Temperature:%d F", system_data.temperature);
-    reading_menu[1] = buf;
-    memset(buf, 0, SCREEN_WIDTH+1);
+    sprintf(buf2, "Temperature:%d F", system_data.temperature);
+    reading_menu[1] = malloc(strlen(buf2)+1);
+    strcpy(reading_menu[1], buf2);
     /* Setup Humidity String */
-    sprintf(buf, "Humidity:%d %%", system_data.humidity);
-    reading_menu[2] = buf;
-    memset(buf, 0, SCREEN_WIDTH+1);
+    sprintf(buf3, "Humidity:%d %%  ", system_data.humidity);
+    reading_menu[2] = malloc(strlen(buf3)+1);
+    strcpy(reading_menu[2], buf3);
     /* Setup Weight string */
-    sprintf(buf, "Weiht:%d lbs", system_data.weight);
-    reading_menu[3] = buf;
-    memset(buf, 0, SCREEN_WIDTH+1);
-    
+    sprintf(buf4, "Weight:%d lbs   ", system_data.weight);
+    reading_menu[3] = malloc(strlen(buf4)+1);
+    strcpy(reading_menu[3], buf4);
 }
 
 /* update_set_param_display - displays the paramter to be set and the
