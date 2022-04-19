@@ -52,7 +52,7 @@ int main (void)
             _delay_us(1);
         }
         snprintf(buff, 20, " %u ", val);
-        sci_outs(buff);
+        serial_outs(buff);
         _delay_ms(3000);
     }
 

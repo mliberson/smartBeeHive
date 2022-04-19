@@ -51,8 +51,7 @@ void lcd_moveto(unsigned char row, unsigned char col)
 void lcd_clear(void)
 {
   serial_out(0xfe);
-  serial_out(0x51)
-
+  serial_out(0x51);
 }
 
 void lcd_reset(void)

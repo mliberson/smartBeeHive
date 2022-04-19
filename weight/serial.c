@@ -2,7 +2,7 @@
 #include <util/delay.h>
 
 void serial_init(unsigned short);
-void sci_outs(char *);
+void serial_outs(char *);
 void serial_out(char);
 char serial_in(void);
 
@@ -15,7 +15,7 @@ void serial_init(unsigned short ubrr)
 }
 
 // sends out a null-byte terminated string
-void sci_outs(char *s)
+void serial_outs(char *s)
 {
     char ch;
     while ((ch = *s++) != '\0')
