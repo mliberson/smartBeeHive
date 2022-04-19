@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "serial.h": "c",
+        "rotary_encoder.h": "c"
+    }
+}

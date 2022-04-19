@@ -79,4 +79,6 @@
 
 	unsigned long HX711_Read(void);
 
+	unsigned char get_weight_sample(void);
+
 #endif /* HX711_h */

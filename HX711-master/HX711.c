@@ -5,23 +5,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include "HX711.h"
-/*
-void HX711_init(uint8_t gain);
-int HX711_is_ready();
-void HX711_set_gain(uint8_t gain);
-int32_t HX711_read();
-int32_t HX711_read_average(uint8_t times);
-double HX711_get_value(uint8_t times);
-float HX711_get_units(uint8_t times);
-void HX711_tare(uint8_t times);
-void HX711_set_scale(float scale);
-float HX711_get_scale();
-void HX711_set_offset(int32_t offset);
-int32_t HX711_get_offset();
-void HX711_power_down();
-void HX711_power_up();
-uint8_t shiftIn(void);
-*/
+
 void HX711_init(uint8_t gain)
 {
     PD_SCK_SET_OUTPUT;
@@ -162,4 +146,9 @@ uint8_t shiftIn(void)
         PD_SCK_SET_LOW;
     }
     return value;
+}
+
+unsigned char get_weight_sample()
+{
+    
 }
