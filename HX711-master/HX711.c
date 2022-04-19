@@ -147,3 +147,8 @@ uint8_t shiftIn(void)
     }
     return value;
 }
+
+unsigned char get_weight_sample()
+{
+    
+}
