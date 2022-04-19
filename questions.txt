@@ -6,22 +6,7 @@ Are the values in the HX711 file the correct ones? Is gain definitely 128? Is ca
 I want to compartmentalize as much info as possible, so I'd like to set these values in the .h file for the HX711.
 (Josh)
 
-The check_input() function in top.c might not work (pointers are weird with arudino defined ports)
-(Josh)
-
 top Makefile is also a bit clunky b/c idk how to force it to compile all the dependent .o files
-(Josh)
-
-*** Update #2: I figured out a way to use just one function with multiple sets of variables for each menu ***
-*** Update: I figured this one out. I just had to make different functions and indices for each menu ***
-Problem: I want to be able to use the rotary encoder in multiple different states. How do I differentiate them?
-For example, I'd like to use it to scroll on the options menu and to scroll on the sensor data display.
-(Josh)
-
-When compiling, you need to "make clean" then "make" (we should figure out how to work this into makefile)
-(Josh)
-
-As of 11:38 PM 4/7, all of the code compiles with one warning (i can't fix the warning)
 (Josh)
 
 We should figure out a better way to store all the data. Maybe a map of data names to an array of recent readings? idk
@@ -30,11 +15,19 @@ We should figure out a better way to store all the data. Maybe a map of data nam
 Also need to figure out how to handle decimals. How are we storing these values?
 (Josh)
 
-As of 10:44 PM 4/8, all of the code compiles with two warnings (they're the same warning and I can't fix it)
-(Josh)
-
 We need to input which pins the fans and heaters will be on and adjust the code a bit, but its pretty much done.
 (Josh)
 
-As of 7:38 PM 4/10, all of the code compiles with two warnings (same warning, still can't fix)
-(Josh)
+7:30 PM 4/16 Josh:
+    check_input function works for our single button. You sometimes might need to 'make clean' before running 'make' to ensure that old .o files don't have outdated data that will mess up your current compilation. Scroll functionality works well, but its slow. So far, we can see current sensor readings and set our desired temperature and that's about it.
+TODO:
+    1. Finish the get_'sensor_name_here'_sample() function for each sensor
+    2. Decide how to store data
+    3. Implement EEPROM functionality into top level code
+    4. Try to make the LCD writing faster (idk why its so slow but its lowkey very annoying)
+    5. Create a physical container for the whole system to get a concept for how it would actually look
+    6. Bigger goals
+        6a. mini-AI to get more consistent honey output or less colony loss somehow?
+        6b. figure out what else this data is good for (I think the temperature data can be very valuable)
+        6c. maybe we should add internet functionality (probably time consuming but could be very interesting)
+        6d. ?

@@ -9,15 +9,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "../lcd/serial.h"
-#define DHT11_PIN 2
+#include "DHT11.h"
 
-#define FOSC 7372800		// Clock frequency
-#define BAUD 9600              // Baud rate used by the LCD
-#define MYUBRR FOSC/16/BAUD-1   // Value for UBRR0 register
-
-uint8_t c=0,I_RH,D_RH,I_Temp,D_Temp,CheckSum;
-
-void Request()				/* Microcontroller send start pulse/request */
+void request()				/* Microcontroller send start pulse/request */
 {
 	DDRD |= (1<<DHT11_PIN);
 	PORTD &= ~(1<<DHT11_PIN);	/* set to low pin */
@@ -25,7 +19,7 @@ void Request()				/* Microcontroller send start pulse/request */
 	PORTD |= (1<<DHT11_PIN);	/* set to high pin */
 }
 
-void Response()				/* receive response from DHT11 */
+void response()				/* receive response from DHT11 */
 {
 	DDRD &= ~(1<<DHT11_PIN);
 	while(PIND & (1<<DHT11_PIN));
@@ -33,9 +27,10 @@ void Response()				/* receive response from DHT11 */
 	while(PIND & (1<<DHT11_PIN));
 }
 
-uint8_t Receive_data()			/* receive data */
+uint8_t receive_data()			/* receive data */
 {	
 	int q;
+	uint8_t c=0;
     for (q=0; q<8; q++)
 	{
 		while((PIND & (1<<DHT11_PIN)) == 0);  /* check received bit 0 or 1 */
@@ -51,6 +46,36 @@ uint8_t Receive_data()			/* receive data */
 		while(PIND & (1<<DHT11_PIN));
 	}
 	return c;
+}
+
+/* get_temp_humid_sample - returns an array containing the temperature and
+	retlative humidity samples just taken.
+	Note:
+		sample[0] contains the integer of relative humidity
+		sample[1] contains the decimal of relative humidity
+		sample[2] contains the integer of temperature
+		sample[3] contains the decimal of temperature
+	Returns: sample if the data came back without errors
+			 NULL if the data was returned with errors
+*/
+char* get_temp_humid_sample()
+{
+	char *samples = malloc(sizeof(char) * 4);
+	char checksum, calc_checksum = 0;
+	request();
+	response();
+	int i;
+	for(i = 0; i < 4; i++)
+	{
+		samples[i] = receive_data();
+		calc_checksum += samples[i];
+	}
+	checksum = receive_data();
+	if(calc_checksum != checksum)
+	{
+		return NULL;
+	}
+	return samples;
 }
 
 /* commented this out to get rid of a "multiple definitions of main" warning when

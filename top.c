@@ -10,6 +10,8 @@
 #include "HX711-master/HX711.h"
 #include "data.h"
 #include "uv\uv.h"
+#include "i2c\i2c.h"
+#include "DHT11\DHT11.h"
 
 #define SCREEN_WIDTH    20
 #define SCREEN_HEIGHT   4
@@ -48,6 +50,7 @@ unsigned char state;
 unsigned char options_menu_ind = 0, reading_menu_ind = 0, set_menu_ind = 0;
 unsigned char set_temp_val = 68;
 unsigned char set_flag = 0;
+char *temp_humid_sample = NULL;
 struct Data system_data;
 struct Data op_conditions;
 
@@ -170,7 +173,7 @@ int main()
                 }
                 if(check_input(ENTER_BTN))
                 {
-                    op_conditions.temperature = set_temp_val;   // will need to be made more generic for other conditions
+                    op_conditions.temperature_int = set_temp_val;   // will need to be made more generic for other conditions
                     set_flag = 0;
                     state = HOME;
                     lcd_clear();
@@ -188,11 +191,11 @@ int main()
             OUTPUT LOGIC
          *******************/
         /* turn on heaters or fans to change internal temperataure */
-        if(system_data.temperature < op_conditions.temperature - DELTA_TEMP)
+        if(system_data.temperature_int < op_conditions.temperature_int - DELTA_TEMP)
         {
             // turn on heaters
         }
-        else if(system_data.temperature > op_conditions.temperature + DELTA_TEMP)
+        else if(system_data.temperature_int > op_conditions.temperature_int + DELTA_TEMP)
         {
             // turn on fans
             // maybe make this pwm? idk
@@ -208,6 +211,7 @@ void init_system()
     serial_init();          // Initialize serial communications
     lcd_init();             // Initialize LCD screen
     lcd_screen(splash_screen, SCREEN_HEIGHT);
+    i2c_init();             // Initialize I2C for EEPROM
     adc_init();             // Initialize Analog-to-Digital Converter
     rot_encoder_init();     // Initialize Rotary Encoder
     HX711_init(128);        // Initialize weight sensor
@@ -269,12 +273,15 @@ unsigned char check_input(unsigned char bit)
 void get_samples()
 {
     system_data.uv = get_uv_sample();
-    system_data.temperature = 0;
-    system_data.humidity = 0;
+    // If the program has runtime blowup, probably here or in create_readings_menu
+    free(temp_humid_sample);
+    temp_humid_sample = get_temp_humid_sample();
+    system_data.humidity_int = temp_humid_sample[0];
+    system_data.humidity_dec = temp_humid_sample[1];
+    system_data.temperature_int = temp_humid_sample[2];
+    system_data.temperature_dec = temp_humid_sample[3];
     system_data.weight = 0;
     /* The accessor functions below need to be implemented */
-    // system_data.temperature = get_temp_sample();
-    // system_data.humidity = get_humidity_sample();
     // system_data.weight = get_weight_sample();
 }
 
@@ -283,22 +290,27 @@ void get_samples()
 */
 void create_readings_menu()
 {
+    int i;
+    /* Reduce memory leaks by freeing previous reading menu strings */
+    for(i = 0; i < READ_MENU_LEN; i++)
+    {
+        free(reading_menu[i]);
+    }
     char buf1[SCREEN_WIDTH+1],buf2[SCREEN_WIDTH+1],buf3[SCREEN_WIDTH+1],buf4[SCREEN_WIDTH+1];
-    // Doesn't handle decimals right now
     /* Setup UV index string */
-    sprintf(buf1, "UV Index:%d     ", system_data.uv);
+    sprintf(buf1, "UV Index:%11d", system_data.uv);
     reading_menu[0] = malloc(strlen(buf1)+1);
     strcpy(reading_menu[0],buf1);
     /* Setup Temperature string */
-    sprintf(buf2, "Temperature:%d F", system_data.temperature);
+    sprintf(buf2, "Temperature:%4d.%d F", system_data.temperature_int, system_data.temperature_dec);
     reading_menu[1] = malloc(strlen(buf2)+1);
     strcpy(reading_menu[1], buf2);
     /* Setup Humidity String */
-    sprintf(buf3, "Humidity:%d %%  ", system_data.humidity);
+    sprintf(buf3, "Humidity:%7d.%d %%", system_data.humidity_int, system_data.humidity_dec);
     reading_menu[2] = malloc(strlen(buf3)+1);
     strcpy(reading_menu[2], buf3);
     /* Setup Weight string */
-    sprintf(buf4, "Weight:%d lbs   ", system_data.weight);
+    sprintf(buf4, "Weight:%9d lbs", system_data.weight);
     reading_menu[3] = malloc(strlen(buf4)+1);
     strcpy(reading_menu[3], buf4);
 }
