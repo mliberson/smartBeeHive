@@ -11,31 +11,31 @@
 #include "../lcd/serial.h"
 #include "DHT11.h"
 
-void request()				/* Microcontroller send start pulse/request */
+void request(unsigned char in_pin)				/* Microcontroller send start pulse/request */
 {
-	DDRD |= (1<<DHT11_PIN);
-	PORTD &= ~(1<<DHT11_PIN);	/* set to low pin */
+	DDRD |= (1<<in_pin);
+	PORTD &= ~(1<<in_pin);	/* set to low pin */
 	_delay_ms(20);			/* wait for 20ms */
-	PORTD |= (1<<DHT11_PIN);	/* set to high pin */
+	PORTD |= (1<<in_pin);	/* set to high pin */
 }
 
-void response()				/* receive response from DHT11 */
+void response(unsigned char in_pin)				/* receive response from DHT11 */
 {
-	DDRD &= ~(1<<DHT11_PIN);
-	while(PIND & (1<<DHT11_PIN));
-	while((PIND & (1<<DHT11_PIN))==0);
-	while(PIND & (1<<DHT11_PIN));
+	DDRD &= ~(1<<in_pin);
+	while(PIND & (1<<in_pin));
+	while((PIND & (1<<in_pin))==0);
+	while(PIND & (1<<in_pin));
 }
 
-uint8_t receive_data()			/* receive data */
+uint8_t receive_data(unsigned char in_pin)			/* receive data */
 {	
 	int q;
 	uint8_t c=0;
     for (q=0; q<8; q++)
 	{
-		while((PIND & (1<<DHT11_PIN)) == 0);  /* check received bit 0 or 1 */
+		while((PIND & (1<<in_pin)) == 0);  /* check received bit 0 or 1 */
 		_delay_us(30);
-		if(PIND & (1<<DHT11_PIN))/* if high pulse is greater than 30ms */
+		if(PIND & (1<<in_pin))/* if high pulse is greater than 30ms */
         {
             c = (c<<1)|(0x01);	/* then its logic HIGH */
         }
@@ -43,7 +43,7 @@ uint8_t receive_data()			/* receive data */
         {
             c = (c<<1);
         }
-		while(PIND & (1<<DHT11_PIN));
+		while(PIND & (1<<in_pin));
 	}
 	return c;
 }
@@ -58,19 +58,19 @@ uint8_t receive_data()			/* receive data */
 	Returns: sample if the data came back without errors
 			 NULL if the data was returned with errors
 */
-char* get_temp_humid_sample()
+char* get_temp_humid_sample(unsigned char in_pin)
 {
 	char *samples = malloc(sizeof(char) * 4);
 	char checksum, calc_checksum = 0;
-	request();
-	response();
+	request(in_pin);
+	response(in_pin);
 	int i;
 	for(i = 0; i < 4; i++)
 	{
-		samples[i] = receive_data();
+		samples[i] = receive_data(in_pin);
 		calc_checksum += samples[i];
 	}
-	checksum = receive_data();
+	checksum = receive_data(in_pin);
 	if(calc_checksum != checksum)
 	{
 		return NULL;

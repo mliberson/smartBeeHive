@@ -1,7 +1,7 @@
 #ifndef ROTARY_H
 #define ROTARY_H
-    #define ROT1    PC2     // first pin of rotary encoder
-    #define ROT2    PC3     // second pin of rotary encoder
+    #define ROT1    PC3     // first pin of rotary encoder
+    #define ROT2    PC2     // second pin of rotary encoder
     volatile unsigned char rot_new_state, rot_old_state;
     volatile unsigned char rot_changed;
     unsigned char rot_up;		// Count to display
