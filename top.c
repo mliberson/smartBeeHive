@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <avr/io.h>
 #include <util/delay.h>
+#include <avr/interrupt.h>
 #include "lcd/serial.h"
 #include "lcd/lcd.h"
 #include "rotary_encoder/rotary_encoder.h"
 #include "adc/adc.h"
+#include "eeprom/eeprom.h"
 #include "HX711-master/HX711.h"
 #include "data.h"
 #include "uv\uv.h"
@@ -21,12 +23,14 @@
 #define INSTRN_SCRN_HT  2   // Refers to number of rows in home and reading screen
 
 #define ENTER_BTN       PB1
-#define HEAT_OUT        /*pin controlling heaters*/
-#define FAN_OUT         /*pin controlling fans*/
+#define HEAT_OUT        PD5
+#define FAN_OUT         PD6
 
 #define MAX_TEMP_VAL    80
 #define MIN_TEMP_VAL    60
 #define DELTA_TEMP      3
+
+#define EEPROM_INIT     50
 
 char *splash_screen[SCREEN_HEIGHT] = {"                    ",
                                       "      WELCOME       ",
@@ -50,6 +54,7 @@ unsigned char state;
 unsigned char options_menu_ind = 0, reading_menu_ind = 0, set_menu_ind = 0;
 unsigned char set_temp_val = 68;
 unsigned char set_flag = 0;
+unsigned int eeprom_internal_addr = EEPROM_INIT, eeprom_timer_count = 0;
 char *temp_humid_sample = NULL;
 struct Data system_data;
 struct Data op_conditions;
@@ -61,6 +66,8 @@ void get_samples(void);
 void display_readings(void);
 void create_readings_menu(void);
 void update_set_param_display(void);
+void save_data_to_eeprom(void);
+void init_timer1(void);
 
 int main()
 {
@@ -200,6 +207,24 @@ int main()
             // turn on fans
             // maybe make this pwm? idk
         }
+
+        /*Save to EEPROM every hour */
+        if(eeprom_timer_count == 2)
+        {
+            eeprom_timer_count = 0;
+            lcd_moveto(0,0);
+            lcd_stringout("Saving to EEPROM");
+            // Save to EEPROM
+            get_samples();
+            save_data_to_eeprom();
+
+            char* buf;
+            int start_addr = EEPROM_INIT;
+            buf = read_eeprom(start_addr);
+            lcd_moveto(1,0);
+            lcd_stringout(buf);
+            _delay_ms(3000);
+        }
     }
 
     return 0;
@@ -215,6 +240,8 @@ void init_system()
     adc_init();             // Initialize Analog-to-Digital Converter
     rot_encoder_init();     // Initialize Rotary Encoder
     HX711_init(128);        // Initialize weight sensor
+    init_timer1();
+    sei();
 }
 
 /* update_menu - Creates the scrolling effect for any given menu on the LCD 
@@ -326,4 +353,41 @@ void update_set_param_display()
     sprintf(buf, "Temperature%9d", set_temp_val);
     lcd_moveto(INSTRN_SCRN_HT, 0);
     lcd_stringout(buf);
+}
+
+void save_data_to_eeprom()
+{
+    char buf[4];
+
+    sprintf(buf, "%3d", system_data.uv);
+    write_eeprom(buf, eeprom_internal_addr);
+    eeprom_internal_addr += 4;
+    sprintf(buf, "%3d", system_data.temperature_int);
+    write_eeprom(buf, eeprom_internal_addr);
+    eeprom_internal_addr += 4;
+    sprintf(buf, "%3d", system_data.temperature_dec);
+    write_eeprom(buf, eeprom_internal_addr);
+    eeprom_internal_addr += 4;
+    sprintf(buf, "%3d", system_data.humidity_int);
+    write_eeprom(buf, eeprom_internal_addr);
+    eeprom_internal_addr += 4;
+    sprintf(buf, "%3d", system_data.humidity_dec);
+    write_eeprom(buf, eeprom_internal_addr);
+    eeprom_internal_addr += 4;
+    sprintf(buf, "%3d", system_data.weight);
+    write_eeprom(buf, eeprom_internal_addr);
+    eeprom_internal_addr += 4;
+}
+
+void init_timer1()
+{
+    TCCR1B |= (1 << WGM12);                 // set for clear timer on compare
+    TIMSK1 |= (1 << OCIE1A);                // Enable output compare A Match Interrupt
+    OCR1A = 35999;                          // Interrupt every 5 seconds
+    TCCR1B |= ((1 << CS12) | (1<< CS10));   // ^
+}
+
+ISR(TIMER1_COMPA_vect)
+{
+    eeprom_timer_count++;
 }
