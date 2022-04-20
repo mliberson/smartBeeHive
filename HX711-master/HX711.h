@@ -22,8 +22,8 @@
     #define DOUT_SET_OUTPUT     DOUT_DDR |= (1<<DOUT_PIN); DOUT_SET_LOW
 
     uint8_t GAIN;		                // amplification factor
-    double OFFSET;	                // used for tare weight
-    float SCALE;	                    // used to return weight in grams, kg, ounces, whatever
+    uint32_t OFFSET;	                // used for tare weight
+    uint32_t SCALE;	                    // used to return weight in grams, kg, ounces, whatever
 
 	// define clock and data pin, channel, and gain factor
 	// channel selection is made by passing the appropriate gain: 128 or 64 for channel A, 32 for channel B
@@ -47,26 +47,26 @@
 	uint32_t HX711_read_average(uint8_t times);
 
 	// returns (read_average() - OFFSET), that is the current value without the tare weight; times = how many readings to do
-	double HX711_get_value(uint8_t times);
+	uint32_t HX711_get_value(uint8_t times);
 
 	// returns get_value() divided by SCALE, that is the raw value divided by a value obtained via calibration
 	// times = how many readings to do
-	float HX711_get_units(uint8_t times);
+	uint32_t HX711_get_units(uint8_t times);
 
 	// set the OFFSET value for tare weight; times = how many times to read the tare value
 	void HX711_tare(uint8_t times);
 
 	// set the SCALE value; this value is used to convert the raw data to "human readable" data (measure units)
-	void HX711_set_scale(float scale);
+	void HX711_set_scale(uint32_t scale);
 
 	// get the current SCALE
-	float HX711_get_scale(void);
+	uint32_t HX711_get_scale(void);
 
 	// set OFFSET, the value that's subtracted from the actual reading (tare weight)
-	void HX711_set_offset(double offset);
+	void HX711_set_offset(uint32_t offset);
 
 	// get the current OFFSET
-	double HX711_get_offset(void);
+	uint32_t HX711_get_offset(void);
 
 	// puts the chip into power down mode
 	void HX711_power_down(void);
@@ -79,6 +79,6 @@
 
 	unsigned long HX711_Read(void);
 
-	unsigned char get_weight_sample(void);
+	uint8_t get_weight_sample(void);
 
 #endif /* HX711_h */
