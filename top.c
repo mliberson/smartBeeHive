@@ -209,21 +209,12 @@ int main()
         }
 
         /*Save to EEPROM every hour */
-        if(eeprom_timer_count == 2)
+        if(eeprom_timer_count == 720)
         {
             eeprom_timer_count = 0;
-            lcd_moveto(0,0);
-            lcd_stringout("Saving to EEPROM");
             // Save to EEPROM
             get_samples();
             save_data_to_eeprom();
-
-            char* buf;
-            int start_addr = EEPROM_INIT;
-            buf = read_eeprom(start_addr);
-            lcd_moveto(1,0);
-            lcd_stringout(buf);
-            _delay_ms(3000);
         }
     }
 
@@ -359,13 +350,13 @@ void save_data_to_eeprom()
 {
     char buf[4];
 
-    sprintf(buf, "%3d", system_data.uv);
-    write_eeprom(buf, eeprom_internal_addr);
-    eeprom_internal_addr += 4;
     sprintf(buf, "%3d", system_data.temperature_int);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
     sprintf(buf, "%3d", system_data.temperature_dec);
+    write_eeprom(buf, eeprom_internal_addr);
+    eeprom_internal_addr += 4;
+    sprintf(buf, "%3d", system_data.uv);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
     sprintf(buf, "%3d", system_data.humidity_int);
@@ -377,6 +368,12 @@ void save_data_to_eeprom()
     sprintf(buf, "%3d", system_data.weight);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
+
+    /* Handle case of writing past 32KB boundary */
+    if(eeprom_internal_addr > 32000)
+    {
+        eeprom_internal_addr = EEPROM_INIT;
+    }
 }
 
 void init_timer1()

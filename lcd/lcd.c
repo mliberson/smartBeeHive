@@ -41,7 +41,6 @@ void lcd_moveto(unsigned char row, unsigned char col)
     serial_out(0xfe);              // Set the cursor position
     serial_out(0x45);
     serial_out(ch);
-    _delay_ms(1000);             // Wait 500msec for the LCD to start up
 }
 
 void lcd_reset(void)
