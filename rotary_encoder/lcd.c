@@ -1,7 +1,12 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include "serial.h"
-#include "lcd.h"
+
+void lcd_init(void);
+void lcd_moveto(unsigned char, unsigned char);
+void lcd_stringout(char *);
+void lcd_clear(void);
+void lcd_reset(void);
 
 void lcd_init()
 {
@@ -32,9 +37,8 @@ void lcd_moveto(unsigned char row, unsigned char col)
       case 3:
         ch = 0x54;
         break;
-      /* Should never get here */
       default:
-        ch = 0xFF;
+        return;
     }
     ch += col;
     
@@ -47,8 +51,7 @@ void lcd_moveto(unsigned char row, unsigned char col)
 void lcd_clear(void)
 {
   serial_out(0xfe);
-  serial_out(0x51)
-
+  serial_out(0x51);
 }
 
 void lcd_reset(void)
@@ -65,25 +68,4 @@ void lcd_reset(void)
 void lcd_stringout(char *str)
 {
     serial_outs(str);              // Output the string
-}
-
-/*
-  lcd_screen - Takes a "sz"x20 char array and prints the contents
-  to the screen.
-*/
-void lcd_screen(char *str_arr[], unsigned char sz)
-{
-  int i;
-  for(i = 0; i < sz; i++)
-  {
-    lcd_moveto(i, 0);
-    lcd_stringout(str_arr[i]);
-
-  }
-}
-
-void lcd_clear()
-{
-    serial_out(0xfe);              // Clear the screen
-    serial_out(0x51);
 }
