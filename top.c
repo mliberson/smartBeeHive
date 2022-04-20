@@ -280,7 +280,7 @@ void get_samples()
     system_data.humidity_dec = temp_humid_sample[1];
     system_data.temperature_int = temp_humid_sample[2];
     system_data.temperature_dec = temp_humid_sample[3];
-    system_data.weight = 0;
+    system_data.weight = HX711_read_average(10);
     /* The accessor functions below need to be implemented */
     // system_data.weight = get_weight_sample();
 }
