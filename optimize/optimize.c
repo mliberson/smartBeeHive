@@ -38,7 +38,7 @@ Data optimize10(int data_addr)
     for(i = 0; i < 10; i++) 
     {
         eeprom_data = read_eeprom(data_addr);
-        (dataArray10 + i) = (Data *)eeprom_data;
+        dataArray10[i] = convert(eeprom_data);
         data_addr += READ_LEN;
     }
 
@@ -74,6 +74,43 @@ Data average(Data d1, Data d2)
     ave.weight = d2.weight-d1.weight;
 
     return ave;
+}
+
+Data convert(char* eeprom_data)
+{
+    Data retD[10];
+    unsigned char i,j;
+ 
+    retD.uv = 100*(eeprom_data[0] + '0') + 10*(eeprom_data[1] + '0') + (eeprom_data[2] + '0');
+    retD.temp_in_int = 100*(eeprom_data[4] + '0') + 10*(eeprom_data[5] + '0') + (eeprom_data[6] + '0');
+    retD.temp_in_dec = 100*(eeprom_data[8] + '0') + 10*(eeprom_data[9] + '0') + (eeprom_data[10] + '0');
+    retD.temp_out_int = 100*(eeprom_data[12] + '0') + 10*(eeprom_data[13] + '0') + (eeprom_data[14] + '0');
+    retD.temp_out_dec = 100*(eeprom_data[16] + '0') + 10*(eeprom_data[17] + '0') + (eeprom_data[18] + '0');
+    retD.hum_in_int = 100*(eeprom_data[20] + '0') + 10*(eeprom_data[21] + '0') + (eeprom_data[22] + '0');
+    retD.hum_in_dec = 100*(eeprom_data[24] + '0') + 10*(eeprom_data[25] + '0') + (eeprom_data[26] + '0');
+    retD.hum_out_int = 100*(eeprom_data[28] + '0') + 10*(eeprom_data[29] + '0') + (eeprom_data[30] + '0');
+    retD.hum_out_dec = 100*(eeprom_data[32] + '0') + 10*(eeprom_data[33] + '0') + (eeprom_data[34] + '0');
+    retD.weight = 100*(eeprom_data[36] + '0') + 10*(eeprom_data[37] + '0') + (eeprom_data[38] + '0');
+    
+}
+
+unsigned char maxFinder100() 
+{
+    unsigned char maxIdx = 0;
+
+    unsigned char maxDelta = dataArray10[0].weight;
+
+    unsigned char i;
+    for(i=1; i<10; i++)
+    {
+        if(dataArray10[i].weight > maxDelta)
+        {
+            maxDelta = dataArray10[i].weight;
+            maxIdx = i;
+        }
+    }
+
+    return maxIdx;
 }
 
 unsigned char maxFinder10() 
