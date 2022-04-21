@@ -9,6 +9,9 @@ void lcd_init()
     _delay_ms(250);
     serial_out(0xfe);              // Clear the screen
     serial_out(0x51);
+    serial_out(0xfe);
+    serial_out(0x52);
+    serial_out(0x32);
 }
 
 /*

@@ -24,7 +24,7 @@
 
 #define ENTER_BTN       PB1
 #define HEAT_OUT1       PD5
-#define HEAT_OUT2       PB7
+#define HEAT_OUT2       PB6
 #define FAN_OUT1        PD6
 #define FAN_OUT2        PB7
 #define TEMP_OUT_PIN    PD3
@@ -84,6 +84,7 @@ int main()
     DDRB |= ((1 << FAN_OUT2) | (1 << HEAT_OUT2));   // Set heaters and fans as outputs
     DDRD |= ((1 << FAN_OUT1) | (1 << HEAT_OUT1));   // ^
 
+
     /* Initialize to HOME state */
     state = HOME;
     lcd_clear();
@@ -129,6 +130,7 @@ int main()
                     lcd_clear();
                     lcd_screen(home_screen, INSTRN_SCRN_HT);
                     _delay_ms(3000);
+                    lcd_clear();
                     update_menu(set_menu, &set_menu_ind, SET_MENU_LEN, 1);
                 }
                 else if(options_menu_ind == 2)
@@ -169,20 +171,23 @@ int main()
         else if(state == SET_PARAMS)
         {
             /* Scroll functionality */
-            if(rot_changed && !set_flag)
+            if(!set_flag)
             {
-                update_menu(set_menu, &set_menu_ind, SET_MENU_LEN, 1);
-                rot_changed = 0;
-            }
+                if(rot_changed)
+                {
+                    update_menu(set_menu, &set_menu_ind, SET_MENU_LEN, 1);
+                    rot_changed = 0;
+                }
 
-            /* Denote which paramter to change */
-            if(check_input(ENTER_BTN))
-            {
-                set_flag = 1;
-                lcd_clear();
-                lcd_screen(set_screen, INSTRN_SCRN_HT);
-                _delay_ms(3000);
-                update_set_param_display();
+                /* Denote which paramter to change */
+                if(check_input(ENTER_BTN))
+                {
+                    set_flag = 1;
+                    lcd_clear();
+                    lcd_screen(set_screen, INSTRN_SCRN_HT);
+                    _delay_ms(3000);
+                    update_set_param_display();
+                }
             }
 
             /* Change and select the desired parameter value */
@@ -209,7 +214,7 @@ int main()
                     lcd_clear();
                     lcd_moveto(1,0);
                     lcd_stringout("   PARAMETER SET!   ");
-                    _delay_ms(1000);
+                    _delay_ms(2000);
                     lcd_clear();
                     lcd_screen(home_screen, INSTRN_SCRN_HT);
                     update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN, 1);
@@ -232,7 +237,7 @@ int main()
             // turn on fans
             // maybe make this pwm? idk
             PORTD |= (1 << FAN_OUT1);
-            PORTD |= (1 << FAN_OUT2);
+            PORTB |= (1 << FAN_OUT2);
         }
         else 
         {
@@ -295,8 +300,10 @@ void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_
     }
 
     // Print out the current menu
-    unsigned char i, temp_ind;
-    for(i = 0; i < SCREEN_HEIGHT; i++)
+    unsigned char i, temp_ind, menu_height;
+    if(menu_len > SCREEN_HEIGHT) menu_height = SCREEN_HEIGHT;
+    else menu_height = menu_len;
+    for(i = 0; i < menu_height; i++)
     {
         lcd_moveto(i, 0);
         temp_ind = (*menu_ind+i) % menu_len;
