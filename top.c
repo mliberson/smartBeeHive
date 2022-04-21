@@ -23,13 +23,16 @@
 #define INSTRN_SCRN_HT  2   // Refers to number of rows in home and reading screen
 
 #define ENTER_BTN       PB1
-#define HEAT_OUT        PD5
-#define FAN_OUT         PD6
+#define HEAT_OUT1       PD5
+#define HEAT_OUT2       PB7
+#define FAN_OUT1        PD6
+#define FAN_OUT2        PB7
 #define TEMP_OUT_PIN    PD3
 #define TEMP_IN_PIN     PD2
 
-#define MAX_TEMP_VAL    80
-#define MIN_TEMP_VAL    60
+#define TEMP_IN_INIT    20
+#define MAX_TEMP_VAL    30
+#define MIN_TEMP_VAL    15
 #define DELTA_TEMP      3
 
 #define EEPROM_INIT     50
@@ -54,7 +57,7 @@ char *set_screen[INSTRN_SCRN_HT] =   {"SCROLL TO CHANGE VAL",
 enum states {HOME, DISP_READINGS, SET_PARAMS};
 unsigned char state;
 unsigned char options_menu_ind = 0, reading_menu_ind = 0, set_menu_ind = 0;
-unsigned char set_temp_val = 68;
+unsigned char set_temp_val = TEMP_IN_INIT;
 unsigned char set_flag = 0;
 unsigned int eeprom_internal_addr = EEPROM_INIT, eeprom_timer_count = 0;
 char *temp_humid_in_sample = NULL, *temp_humid_out_sample = NULL;
@@ -78,6 +81,9 @@ int main()
     PORTB |= (1 << ENTER_BTN);  // Pull-up resistor for enter btn
     _delay_ms(3000);            // Ensure everything is loaded properly
 
+    DDRB |= ((1 << FAN_OUT2) | (1 << HEAT_OUT2));   // Set heaters and fans as outputs
+    DDRD |= ((1 << FAN_OUT1) | (1 << HEAT_OUT1));   // ^
+
     /* Initialize to HOME state */
     state = HOME;
     lcd_clear();
@@ -87,6 +93,8 @@ int main()
 
     /* Fill system_data with most recent data */
     get_samples();
+
+    op_conditions.temp_in_int = set_temp_val;
 
     while(1)
     {
@@ -216,11 +224,26 @@ int main()
         if(system_data.temp_in_int < op_conditions.temp_in_int - DELTA_TEMP)
         {
             // turn on heaters
+            PORTD |= (1 << HEAT_OUT1);
+            PORTB |= (1 << HEAT_OUT2);
         }
         else if(system_data.temp_in_int > op_conditions.temp_in_int + DELTA_TEMP)
         {
             // turn on fans
             // maybe make this pwm? idk
+            PORTD |= (1 << FAN_OUT1);
+            PORTD |= (1 << FAN_OUT2);
+        }
+        else 
+        {
+            // Turn it all off
+            PORTD &= ~((1 << FAN_OUT1) | (1 << HEAT_OUT1));
+            PORTB &= ~((1 << FAN_OUT2) | (1 << HEAT_OUT2));
+        }
+
+        if((eeprom_timer_count % 20) == 0)
+        {
+            get_samples();
         }
 
         /*Save to EEPROM every hour */
