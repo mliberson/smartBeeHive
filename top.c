@@ -61,6 +61,7 @@ unsigned char options_menu_ind = 0, reading_menu_ind = 0, set_menu_ind = 0;
 unsigned char set_temp_val = TEMP_IN_INIT;
 unsigned char set_flag = 0;
 unsigned int eeprom_internal_addr = EEPROM_INIT, eeprom_timer_count = 0, data_point_count = 0;
+unsigned char num_warnings = 0;
 char *temp_humid_in_sample = NULL, *temp_humid_out_sample = NULL;
 struct Data system_data;
 struct Data user_define_conditions;
@@ -71,7 +72,7 @@ void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_
 unsigned char check_input(unsigned char bit);
 void get_samples(void);
 void display_readings(void);
-void create_readings_menu(void);
+void create_readings_menu(Data* data);
 void update_set_param_display(void);
 void save_data_to_eeprom(void);
 void init_timer1(void);
@@ -120,7 +121,7 @@ int main()
                 if(options_menu_ind == 0)
                 {
                     state = DISP_READINGS;
-                    create_readings_menu();                     // Construct Readings menu
+                    create_readings_menu(&system_data);         // Construct Readings menu
                     lcd_clear();                                // Clear Screen
                     lcd_screen(reading_screen, INSTRN_SCRN_HT); // Display the Readings screen instruction menu
                     _delay_ms(3000);
@@ -137,11 +138,59 @@ int main()
                 }
                 else if(options_menu_ind == 2)
                 {
+                    state = BEST_CONDITIONS;
                     /* Best conditions info */
+                    if(data_point_count >= 100)
+                    {
+                        /* Print out instructions */
+                        lcd_clear();
+                        lcd_screen(home_screen, INSTRN_SCRN_HT);
+                        op_conditions = optimize100(eeprom_internal_addr - READ_LEN * 100)
+                        _delay_ms(3000);
+                        lcd_clear();
+
+                        /* Print out best conditions */
+                        create_readings_menu(&op_conditions);
+                        update_menu(reading_menu, &reading_menu_ind, READ_MENU_LEN, 0);
+                    }
+                    else
+                    {
+                        /* Not enough data points */
+                        lcd_moveto(1,0);
+                        lcd_stringout(" DATA NOT AVAILABLE ");
+                        lcd_stringout("MORE DATA PTS NEEDED");
+                        _delay_ms(3000);
+
+                        /* Go back to home */
+                        state = HOME;
+                        lcd_clear();
+                        lcd_screen(home_screen, INSTRN_SCRN_HT);
+                        _delay_ms(3000);
+                        update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN, 1);
+                    }
                 }
                 else if(options_menu_ind == 3)
                 {
                     /* Wanring info */
+                    state = SEE_WARNINGS;
+                    if(num_warnings > 0)
+                    {
+                        /* Print out warnings */
+                    }
+                    else
+                    {
+                        /* No warnings */
+                        lcd_moveto(1,0);
+                        lcd_stringout("    NO WARNINGS     ");
+                        _delay_ms(3000);
+
+                        /* Go back to home */
+                        state = HOME;
+                        lcd_clear();
+                        lcd_screen(home_screen, INSTRN_SCRN_HT);
+                        _delay_ms(3000);
+                        update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN, 1);
+                    }
                 }
                 /* Can add new state transitions HERE when we get them */
                 else
@@ -226,26 +275,16 @@ int main()
         }
         else if(state == BEST_CONDITIONS)
         {
-            if(data_point_count >= 100)
+            /* DISPLAY UPDATES */
+            if(rot_changed)
             {
-                /* Print out instructions */
-                lcd_clear();
-                lcd_screen(home_screen, INSTRN_SCRN_HT);
-                op_conditions = optimize100(eeprom_internal_addr - READ_LEN * 100)
-                _delay_ms(3000);
-                lcd_clear();
-
-                /* Print out best conditions */
+                update_menu(reading_menu, &reading_menu_ind, READ_MENU_LEN, 0);
+                rot_changed = 0;
             }
-            else
-            {
-                /* Not enough data points */
-                lcd_moveto(1,0);
-                lcd_stringout(" DATA NOT AVAILABLE ");
-                lcd_stringout("MORE DATA PTS NEEDED");
-                _delay_ms(3000);
 
-                /* Go back to home */
+            /* STATE TRANSITIONS */
+            if(check_input(ENTER_BTN))
+            {
                 state = HOME;
                 lcd_clear();
                 lcd_screen(home_screen, INSTRN_SCRN_HT);
@@ -255,7 +294,15 @@ int main()
         }
         else if(state == SEE_WARNINGS)
         {
-
+            /* STATE TRANSITIONS */
+            if(check_input(ENTER_BTN))
+            {
+                state = HOME;
+                lcd_clear();
+                lcd_screen(home_screen, INSTRN_SCRN_HT);
+                _delay_ms(3000);
+                update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN, 1);
+            }
         }
         else
         {
@@ -402,7 +449,7 @@ void get_samples()
 /* create_readings_menu - creates the char array menu with the
     most recent sensor readings
 */
-void create_readings_menu()
+void create_readings_menu(Data* data)
 {
     int i;
     /* Reduce memory leaks by freeing previous reading menu strings */
@@ -412,27 +459,27 @@ void create_readings_menu()
     }
     char buf1[SCREEN_WIDTH+1],buf2[SCREEN_WIDTH+1],buf3[SCREEN_WIDTH+1],buf4[SCREEN_WIDTH+1],buf5[SCREEN_WIDTH+1],buf6[SCREEN_WIDTH+1];
     /* Setup UV index string */
-    sprintf(buf1, "UV Index:%11d", system_data.uv);
+    sprintf(buf1, "UV Index:%11d", *data.uv);
     reading_menu[0] = malloc(strlen(buf1)+1);
     strcpy(reading_menu[0],buf1);
     /* Setup Internal Temperature string */
-    sprintf(buf2, "Inside Temp:%4d.%d C", system_data.temp_in_int, system_data.temp_in_dec);
+    sprintf(buf2, "Inside Temp:%4d.%d C", system_data.temp_in_int, *data.temp_in_dec);
     reading_menu[1] = malloc(strlen(buf2)+1);
     strcpy(reading_menu[1], buf2);
     /* Setup External Temperature string */
-    sprintf(buf3, "Outside Temp:%3d.%d C", system_data.temp_out_int, system_data.temp_out_dec);
+    sprintf(buf3, "Outside Temp:%3d.%d C", system_data.temp_out_int, *data.temp_out_dec);
     reading_menu[2] = malloc(strlen(buf3)+1);
     strcpy(reading_menu[2], buf3);
     /* Setup Internal Humidity String */
-    sprintf(buf4, "Inside RH:%6d.%d %%", system_data.hum_in_int, system_data.hum_in_dec);
+    sprintf(buf4, "Inside RH:%6d.%d %%", system_data.hum_in_int, *data.hum_in_dec);
     reading_menu[3] = malloc(strlen(buf4)+1);
     strcpy(reading_menu[3], buf4);
     /* Setup External Humidity String */
-    sprintf(buf5, "Outside RH:%5d.%d %%", system_data.hum_out_int, system_data.hum_out_dec);
+    sprintf(buf5, "Outside RH:%5d.%d %%", system_data.hum_out_int, *data.hum_out_dec);
     reading_menu[4] = malloc(strlen(buf5)+1);
     strcpy(reading_menu[4], buf5);
     /* Setup Weight string */
-    sprintf(buf6, "Weight:%9d lbs", system_data.weight);
+    sprintf(buf6, "Weight:%9d lbs", *data.weight);
     reading_menu[5] = malloc(strlen(buf6)+1);
     strcpy(reading_menu[5], buf6);
 }
@@ -460,34 +507,34 @@ void save_data_to_eeprom()
 {
     char buf[4];
 
-    sprintf(buf, "%3d", system_data.temp_in_int);
+    sprintf(buf, "%03d", system_data.temp_in_int);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.temp_in_dec);
+    sprintf(buf, "%03d", system_data.temp_in_dec);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.temp_out_int);
+    sprintf(buf, "%03d", system_data.temp_out_int);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.temp_out_dec);
+    sprintf(buf, "%03d", system_data.temp_out_dec);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.uv);
+    sprintf(buf, "%03d", system_data.uv);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.hum_in_int);
+    sprintf(buf, "%03d", system_data.hum_in_int);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.hum_in_dec);
+    sprintf(buf, "%03d", system_data.hum_in_dec);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.hum_out_int);
+    sprintf(buf, "%03d", system_data.hum_out_int);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.hum_out_dec);
+    sprintf(buf, "%03d", system_data.hum_out_dec);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
-    sprintf(buf, "%3d", system_data.weight);
+    sprintf(buf, "%03d", system_data.weight);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
 

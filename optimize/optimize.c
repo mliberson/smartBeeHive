@@ -2,7 +2,7 @@
 #include <util/delay.h>
 #include <stdio.h>
 #include <string.h>
-#include "eeprom.h"
+#include "..\eeprom\eeprom.h"
 #include "..\data.h"
 #include "optimize.h"
 
