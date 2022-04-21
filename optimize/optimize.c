@@ -93,6 +93,7 @@ struct Data convert(char* eeprom_data)
 
     return retD;
     
+    return retD;
 }
 
 unsigned char maxFinder100() 
