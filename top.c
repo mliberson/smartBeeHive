@@ -35,8 +35,18 @@
 #define MAX_TEMP_VAL    30
 #define MIN_TEMP_VAL    15
 #define DELTA_TEMP      3
+#define MAX_DELTA_TEMP  6
+#define MAX_UV          10
+#define MIN_UV          1
+#define MAX_HUM         65
+#define MIN_HUM         45
+#define TEMP            0
+#define HUM             1
+#define UV              2
 
 #define EEPROM_INIT     50
+#define SAMPLE_CNT_ADDR 10
+#define EEPROM_WRT_ADDR 20
 
 char *splash_screen[SCREEN_HEIGHT] = {"                    ",
                                       "      WELCOME       ",
@@ -57,10 +67,13 @@ char *set_screen[INSTRN_SCRN_HT] =   {"SCROLL TO CHANGE VAL",
 
 enum states {HOME, DISP_READINGS, SET_PARAMS, BEST_CONDITIONS, SEE_WARNINGS};
 unsigned char state;
+enum warning_states {NONE,HIGH,LOW};
+unsigned char warning_state[3];
 unsigned char options_menu_ind = 0, reading_menu_ind = 0, set_menu_ind = 0;
 unsigned char set_temp_val = TEMP_IN_INIT;
 unsigned char set_flag = 0;
-unsigned int eeprom_internal_addr = EEPROM_INIT, eeprom_timer_count = 0, data_point_count = 0;
+unsigned int eeprom_internal_addr = EEPROM_INIT, data_point_count = 0;
+volatile unsigned int eeprom_timer_count = 0, timer_flag= 0;
 unsigned char num_warnings = 0;
 char *temp_humid_in_sample = NULL, *temp_humid_out_sample = NULL;
 struct Data system_data;
@@ -72,7 +85,7 @@ void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_
 unsigned char check_input(unsigned char bit);
 void get_samples(void);
 void display_readings(void);
-void create_readings_menu(Data* data);
+void create_readings_menu(struct Data* data);
 void update_set_param_display(void);
 void save_data_to_eeprom(void);
 void init_timer1(void);
@@ -98,10 +111,15 @@ int main()
     /* Fill system_data with most recent data */
     get_samples();
 
+    /* Set initial thermostat value */
     user_define_conditions.temp_in_int = set_temp_val;
 
     while(1)
     {
+        lcd_moveto(0,0);
+        char buf[4];
+        sprintf(buf, "%d", data_point_count);
+        lcd_stringout(buf);
         /*************************************************
                          STATE MACHINE
          *************************************************/
@@ -145,7 +163,7 @@ int main()
                         /* Print out instructions */
                         lcd_clear();
                         lcd_screen(home_screen, INSTRN_SCRN_HT);
-                        op_conditions = optimize100(eeprom_internal_addr - READ_LEN * 100)
+                        op_conditions = optimize100(eeprom_internal_addr - READ_LEN * 100);
                         _delay_ms(3000);
                         lcd_clear();
 
@@ -156,8 +174,10 @@ int main()
                     else
                     {
                         /* Not enough data points */
+                        lcd_clear();
                         lcd_moveto(1,0);
                         lcd_stringout(" DATA NOT AVAILABLE ");
+                        lcd_moveto(2,0);
                         lcd_stringout("MORE DATA PTS NEEDED");
                         _delay_ms(3000);
 
@@ -173,9 +193,35 @@ int main()
                 {
                     /* Wanring info */
                     state = SEE_WARNINGS;
+
                     if(num_warnings > 0)
                     {
-                        /* Print out warnings */
+                        lcd_clear();
+                        lcd_stringout("      Warnings:      ");
+                        if(warning_state[TEMP] == HIGH)
+                        {
+                            lcd_stringout("Temp is above 26C.  ");
+                        }
+                        else if(warning_state[TEMP] == LOW)
+                        {
+                            lcd_stringout("Temp is below 14C.  ");
+                        }
+                        if(warning_state[HUM] == HIGH)
+                        {
+                            lcd_stringout("Humidity is above 65");
+                        }
+                        else if(warning_state[HUM] == LOW)
+                        {
+                            lcd_stringout("Humidity is below 45");
+                        }
+                        if(warning_state[UV] == HIGH)
+                        {
+                            lcd_stringout("UV is above 10.     ");
+                        }
+                        else if(warning_state[UV] == LOW)
+                        {
+                            lcd_stringout("UV is below 1.      ");
+                        }
                     }
                     else
                     {
@@ -319,6 +365,11 @@ int main()
             // turn on heaters
             PORTD |= (1 << HEAT_OUT1);
             PORTB |= (1 << HEAT_OUT2);
+
+            if(system_data.temp_in_int < user_define_conditions.temp_in_int - MAX_DELTA_TEMP)
+            {
+                warning_state[0] = HIGH;
+            }
         }
         else if(system_data.temp_in_int > user_define_conditions.temp_in_int + DELTA_TEMP)
         {
@@ -326,28 +377,77 @@ int main()
             // maybe make this pwm? idk
             PORTD |= (1 << FAN_OUT1);
             PORTB |= (1 << FAN_OUT2);
+
+            if(system_data.temp_in_int < user_define_conditions.temp_in_int + MAX_DELTA_TEMP)
+            {
+                warning_state[TEMP] = LOW;
+            }
         }
         else 
         {
             // Turn it all off
             PORTD &= ~((1 << FAN_OUT1) | (1 << HEAT_OUT1));
             PORTB &= ~((1 << FAN_OUT2) | (1 << HEAT_OUT2));
+            warning_state[TEMP] = NONE;
         }
 
-        if((eeprom_timer_count % 20) == 0)
+        if(system_data.hum_in_int > MAX_HUM)
         {
-            get_samples();
+            warning_state[HUM] = HIGH;
+        }
+        else if(system_data.hum_in_int < MIN_HUM)
+        {
+            warning_state[HUM] = LOW;
+        }
+        else 
+        {
+            warning_state[HUM] = NONE;
+        }
+        if(system_data.uv > MAX_UV)
+        {
+            warning_state[UV] = HIGH;
+        }
+        else if(system_data.uv < MIN_UV)
+        {
+            warning_state[UV] = LOW;
+        }
+        else
+        {
+            warning_state[UV] = NONE;
         }
 
-        /*Save to EEPROM every hour */
-        if(eeprom_timer_count == 720)
+        num_warnings = 0;
+        if(warning_state[TEMP] != NONE)
         {
-            eeprom_timer_count = 0;
-            data_point_count++;
-            // Save to EEPROM
-            get_samples();
-            save_data_to_eeprom();
+            num_warnings++;
         }
+        if(warning_state[HUM] != NONE)
+        {
+            num_warnings++;
+        }
+        if(warning_state[UV] != NONE)
+        {
+            num_warnings++;
+        }
+
+        if(((eeprom_timer_count % 10) == 0) && timer_flag)
+        {
+            get_samples();
+            timer_flag = 0;
+            
+            if((eeprom_timer_count % 100) == 0) 
+            {
+                unsigned char i;
+                for(i = 0; i < 100; i++) {
+                    save_data_to_eeprom();
+                    /*Save to EEPROM every hour */
+                    eeprom_timer_count = 0;
+                    data_point_count++;
+                    // Save to EEPROM
+                }
+            }
+        }
+
     }
 
     return 0;
@@ -449,7 +549,7 @@ void get_samples()
 /* create_readings_menu - creates the char array menu with the
     most recent sensor readings
 */
-void create_readings_menu(Data* data)
+void create_readings_menu(struct Data* data)
 {
     int i;
     /* Reduce memory leaks by freeing previous reading menu strings */
@@ -459,27 +559,27 @@ void create_readings_menu(Data* data)
     }
     char buf1[SCREEN_WIDTH+1],buf2[SCREEN_WIDTH+1],buf3[SCREEN_WIDTH+1],buf4[SCREEN_WIDTH+1],buf5[SCREEN_WIDTH+1],buf6[SCREEN_WIDTH+1];
     /* Setup UV index string */
-    sprintf(buf1, "UV Index:%11d", *data.uv);
+    sprintf(buf1, "UV Index:%11d", data->uv);
     reading_menu[0] = malloc(strlen(buf1)+1);
     strcpy(reading_menu[0],buf1);
     /* Setup Internal Temperature string */
-    sprintf(buf2, "Inside Temp:%4d.%d C", system_data.temp_in_int, *data.temp_in_dec);
+    sprintf(buf2, "Inside Temp:%4d.%d C", system_data.temp_in_int, data->temp_in_dec);
     reading_menu[1] = malloc(strlen(buf2)+1);
     strcpy(reading_menu[1], buf2);
     /* Setup External Temperature string */
-    sprintf(buf3, "Outside Temp:%3d.%d C", system_data.temp_out_int, *data.temp_out_dec);
+    sprintf(buf3, "Outside Temp:%3d.%d C", system_data.temp_out_int, data->temp_out_dec);
     reading_menu[2] = malloc(strlen(buf3)+1);
     strcpy(reading_menu[2], buf3);
     /* Setup Internal Humidity String */
-    sprintf(buf4, "Inside RH:%6d.%d %%", system_data.hum_in_int, *data.hum_in_dec);
+    sprintf(buf4, "Inside RH:%6d.%d %%", system_data.hum_in_int, data->hum_in_dec);
     reading_menu[3] = malloc(strlen(buf4)+1);
     strcpy(reading_menu[3], buf4);
     /* Setup External Humidity String */
-    sprintf(buf5, "Outside RH:%5d.%d %%", system_data.hum_out_int, *data.hum_out_dec);
+    sprintf(buf5, "Outside RH:%5d.%d %%", system_data.hum_out_int, data->hum_out_dec);
     reading_menu[4] = malloc(strlen(buf5)+1);
     strcpy(reading_menu[4], buf5);
     /* Setup Weight string */
-    sprintf(buf6, "Weight:%9d lbs", *data.weight);
+    sprintf(buf6, "Weight: %10d g", data->weight);
     reading_menu[5] = malloc(strlen(buf6)+1);
     strcpy(reading_menu[5], buf6);
 }
@@ -563,4 +663,5 @@ void init_timer1()
 ISR(TIMER1_COMPA_vect)
 {
     eeprom_timer_count++;
+    timer_flag = 1;
 }
