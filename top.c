@@ -37,6 +37,8 @@
 #define DELTA_TEMP      3
 
 #define EEPROM_INIT     50
+#define SAMPLE_CNT_ADDR 10
+#define EEPROM_WRT_ADDR 20
 
 char *splash_screen[SCREEN_HEIGHT] = {"                    ",
                                       "      WELCOME       ",
@@ -72,7 +74,7 @@ void update_menu(char** menu, unsigned char *menu_ind, const unsigned char menu_
 unsigned char check_input(unsigned char bit);
 void get_samples(void);
 void display_readings(void);
-void create_readings_menu(Data* data);
+void create_readings_menu(struct Data* data);
 void update_set_param_display(void);
 void save_data_to_eeprom(void);
 void init_timer1(void);
@@ -99,6 +101,9 @@ int main()
     get_samples();
 
     user_define_conditions.temp_in_int = set_temp_val;
+
+    data_point_count = read_eeprom(SAMPLE_CNT_ADDR, 4);
+    eeprom_internal_addr = read_eeprom(EEPROM_WRT_ADDR, 4);
 
     while(1)
     {
@@ -145,7 +150,7 @@ int main()
                         /* Print out instructions */
                         lcd_clear();
                         lcd_screen(home_screen, INSTRN_SCRN_HT);
-                        op_conditions = optimize100(eeprom_internal_addr - READ_LEN * 100)
+                        op_conditions = optimize100(eeprom_internal_addr - READ_LEN * 100);
                         _delay_ms(3000);
                         lcd_clear();
 
@@ -156,8 +161,10 @@ int main()
                     else
                     {
                         /* Not enough data points */
+                        lcd_clear();
                         lcd_moveto(1,0);
                         lcd_stringout(" DATA NOT AVAILABLE ");
+                        lcd_moveto(2,0);
                         lcd_stringout("MORE DATA PTS NEEDED");
                         _delay_ms(3000);
 
@@ -180,6 +187,7 @@ int main()
                     else
                     {
                         /* No warnings */
+                        lcd_clear();
                         lcd_moveto(1,0);
                         lcd_stringout("    NO WARNINGS     ");
                         _delay_ms(3000);
@@ -316,12 +324,18 @@ int main()
         /* turn on heaters or fans to change internal temperataure */
         if(system_data.temp_in_int < user_define_conditions.temp_in_int - DELTA_TEMP)
         {
+            /* Turn on fans */
+            PORTD &= ~(1 << FAN_OUT1);
+            PORTB &= ~(1 << FAN_OUT2);
             // turn on heaters
             PORTD |= (1 << HEAT_OUT1);
             PORTB |= (1 << HEAT_OUT2);
         }
         else if(system_data.temp_in_int > user_define_conditions.temp_in_int + DELTA_TEMP)
         {
+            /* Turn off heat*/
+            PORTD &= ~(1 << HEAT_OUT1);
+            PORTB &= ~(1 << HEAT_OUT2);
             // turn on fans
             // maybe make this pwm? idk
             PORTD |= (1 << FAN_OUT1);
@@ -334,9 +348,15 @@ int main()
             PORTB &= ~((1 << FAN_OUT2) | (1 << HEAT_OUT2));
         }
 
-        if((eeprom_timer_count % 20) == 0)
+        // add a flag so it will only happen once per period
+        if((eeprom_timer_count % 5) == 0)
         {
+            lcd_clear();
+            lcd_moveto(1,0);
+            lcd_stringout("   Getting Sample   ");
             get_samples();
+            lcd_moveto(1,0);
+            lcd_stringout("   Sample Acquired  ");
         }
 
         /*Save to EEPROM every hour */
@@ -438,6 +458,8 @@ void get_samples()
     system_data.temp_in_int = temp_humid_in_sample[2];
     system_data.temp_in_dec = temp_humid_in_sample[3];
     free(temp_humid_out_sample);
+    lcd_moveto(1,0);
+    lcd_stringout(" Sample Almost Done ");
     temp_humid_out_sample = get_temp_humid_sample(TEMP_OUT_PIN);
     system_data.hum_out_int = temp_humid_out_sample[0];
     system_data.hum_out_dec = temp_humid_out_sample[1];
@@ -449,7 +471,7 @@ void get_samples()
 /* create_readings_menu - creates the char array menu with the
     most recent sensor readings
 */
-void create_readings_menu(Data* data)
+void create_readings_menu(struct Data *data)
 {
     int i;
     /* Reduce memory leaks by freeing previous reading menu strings */
@@ -459,27 +481,27 @@ void create_readings_menu(Data* data)
     }
     char buf1[SCREEN_WIDTH+1],buf2[SCREEN_WIDTH+1],buf3[SCREEN_WIDTH+1],buf4[SCREEN_WIDTH+1],buf5[SCREEN_WIDTH+1],buf6[SCREEN_WIDTH+1];
     /* Setup UV index string */
-    sprintf(buf1, "UV Index:%11d", *data.uv);
+    sprintf(buf1, "UV Index:%11d", data->uv);
     reading_menu[0] = malloc(strlen(buf1)+1);
     strcpy(reading_menu[0],buf1);
     /* Setup Internal Temperature string */
-    sprintf(buf2, "Inside Temp:%4d.%d C", system_data.temp_in_int, *data.temp_in_dec);
+    sprintf(buf2, "Inside Temp:%4d.%d C", data->temp_in_int, data->temp_in_dec);
     reading_menu[1] = malloc(strlen(buf2)+1);
     strcpy(reading_menu[1], buf2);
     /* Setup External Temperature string */
-    sprintf(buf3, "Outside Temp:%3d.%d C", system_data.temp_out_int, *data.temp_out_dec);
+    sprintf(buf3, "Outside Temp:%3d.%d C", data->temp_out_int, data->temp_out_dec);
     reading_menu[2] = malloc(strlen(buf3)+1);
     strcpy(reading_menu[2], buf3);
     /* Setup Internal Humidity String */
-    sprintf(buf4, "Inside RH:%6d.%d %%", system_data.hum_in_int, *data.hum_in_dec);
+    sprintf(buf4, "Inside RH:%6d.%d %%", data->hum_in_int, data->hum_in_dec);
     reading_menu[3] = malloc(strlen(buf4)+1);
     strcpy(reading_menu[3], buf4);
     /* Setup External Humidity String */
-    sprintf(buf5, "Outside RH:%5d.%d %%", system_data.hum_out_int, *data.hum_out_dec);
+    sprintf(buf5, "Outside RH:%5d.%d %%", data->hum_out_int, data->hum_out_dec);
     reading_menu[4] = malloc(strlen(buf5)+1);
     strcpy(reading_menu[4], buf5);
     /* Setup Weight string */
-    sprintf(buf6, "Weight:%9d lbs", *data.weight);
+    sprintf(buf6, "Weight:%7d grams", data->weight);
     reading_menu[5] = malloc(strlen(buf6)+1);
     strcpy(reading_menu[5], buf6);
 }

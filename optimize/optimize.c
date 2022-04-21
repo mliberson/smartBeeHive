@@ -10,7 +10,7 @@
     Parameters:
         data_addr -> address of the first Data struct to be retrieved from eeprom
 */
-Data optimize100(int data_addr) 
+struct Data optimize100(int data_addr) 
 {
     
     unsigned char i;
@@ -30,14 +30,14 @@ Data optimize100(int data_addr)
     Parameters:
         data_addr -> address of the first Data struct to be retrieved from eeprom
 */
-Data optimize10(int data_addr)
+struct Data optimize10(int data_addr)
 {
-    char eeprom_data[40];
+    char* eeprom_data;
 
     unsigned char i;
     for(i = 0; i < 10; i++) 
     {
-        eeprom_data = read_eeprom(data_addr);
+        eeprom_data = read_eeprom(data_addr, READ_LEN);
         dataArray10[i] = convert(eeprom_data);
         data_addr += READ_LEN;
     }
@@ -58,17 +58,17 @@ Data optimize10(int data_addr)
         d1 -> older of the two adjacent Data structs
         d2 -> newer of the two adjacent Data structs
 */
-Data average(Data d1, Data d2) 
+struct Data average(struct Data d1, struct Data d2) 
 {
-    Data ave;
+    struct Data ave;
 
     ave.uv = (d1.uv+d2.uv)/2;
     ave.temp_in_int = (d1.temp_in_int+d2.temp_in_int)/2;
     ave.temp_in_dec = (d1.temp_in_dec+d2.temp_in_dec)/2;
     ave.temp_out_int = (d1.temp_out_int+d2.temp_out_int)/2;
-    ave.demp_out_dec = (d1.demp_out_dec+d2.demp_out_dec)/2;
+    ave.temp_out_dec = (d1.temp_out_dec+d2.temp_out_dec)/2;
     ave.hum_in_int = (d1.hum_in_int+d2.hum_in_int)/2;
-    ave.hum_in_dec = (d1.hump_in_dec+d2.hum_in_dec)/2;
+    ave.hum_in_dec = (d1.hum_in_dec+d2.hum_in_dec)/2;
     ave.hum_out_int = (d1.hum_out_int+d2.hum_out_int)/2;
     ave.hum_out_dec = (d1.hum_out_dec+d2.hum_out_dec)/2;
     ave.weight = d2.weight-d1.weight;
@@ -76,10 +76,9 @@ Data average(Data d1, Data d2)
     return ave;
 }
 
-Data convert(char* eeprom_data)
+struct Data convert(char* eeprom_data)
 {
-    Data retD[10];
-    unsigned char i,j;
+    struct Data retD;
  
     retD.uv = 100*(eeprom_data[0] + '0') + 10*(eeprom_data[1] + '0') + (eeprom_data[2] + '0');
     retD.temp_in_int = 100*(eeprom_data[4] + '0') + 10*(eeprom_data[5] + '0') + (eeprom_data[6] + '0');
@@ -91,6 +90,8 @@ Data convert(char* eeprom_data)
     retD.hum_out_int = 100*(eeprom_data[28] + '0') + 10*(eeprom_data[29] + '0') + (eeprom_data[30] + '0');
     retD.hum_out_dec = 100*(eeprom_data[32] + '0') + 10*(eeprom_data[33] + '0') + (eeprom_data[34] + '0');
     retD.weight = 100*(eeprom_data[36] + '0') + 10*(eeprom_data[37] + '0') + (eeprom_data[38] + '0');
+
+    return retD;
     
 }
 

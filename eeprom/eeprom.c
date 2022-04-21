@@ -27,12 +27,12 @@ char write_eeprom(char* str, int data_addr)
         data_addr --> position of data to begin reading from
                     (Should be EEPROM_INIT + multiple of READ_LEN)
 */
-char* read_eeprom(int data_addr)
+char* read_eeprom(int data_addr, unsigned char data_len)
 {
     char status;
 
     memset(rdata, 0, READ_LEN);
-    status = rdprom((unsigned char*) rdata, READ_LEN, data_addr);
+    status = rdprom((unsigned char*) rdata, data_len, data_addr);
     if(status == 0)
     {
         return rdata;
