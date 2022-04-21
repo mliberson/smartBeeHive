@@ -14,6 +14,7 @@
 #include "uv\uv.h"
 #include "i2c\i2c.h"
 #include "DHT11\DHT11.h"
+#include "optimize\optimize.h"
 
 #define SCREEN_WIDTH    20
 #define SCREEN_HEIGHT   4
@@ -54,14 +55,15 @@ char *set_menu[SET_MENU_LEN] =       {"- Set Temperature   "};
 char *set_screen[INSTRN_SCRN_HT] =   {"SCROLL TO CHANGE VAL",
                                       "PRESS TO SELECT     "};
 
-enum states {HOME, DISP_READINGS, SET_PARAMS};
+enum states {HOME, DISP_READINGS, SET_PARAMS, BEST_CONDITIONS, SEE_WARNINGS};
 unsigned char state;
 unsigned char options_menu_ind = 0, reading_menu_ind = 0, set_menu_ind = 0;
 unsigned char set_temp_val = TEMP_IN_INIT;
 unsigned char set_flag = 0;
-unsigned int eeprom_internal_addr = EEPROM_INIT, eeprom_timer_count = 0;
+unsigned int eeprom_internal_addr = EEPROM_INIT, eeprom_timer_count = 0, data_point_count = 0;
 char *temp_humid_in_sample = NULL, *temp_humid_out_sample = NULL;
 struct Data system_data;
+struct Data user_define_conditions;
 struct Data op_conditions;
 
 void init_system(void);
@@ -95,7 +97,7 @@ int main()
     /* Fill system_data with most recent data */
     get_samples();
 
-    op_conditions.temp_in_int = set_temp_val;
+    user_define_conditions.temp_in_int = set_temp_val;
 
     while(1)
     {
@@ -208,7 +210,7 @@ int main()
                 }
                 if(check_input(ENTER_BTN))
                 {
-                    op_conditions.temp_in_int = set_temp_val;   // will need to be made more generic for other conditions
+                    user_define_conditions.temp_in_int = set_temp_val;   // will need to be made more generic for other conditions
                     set_flag = 0;
                     state = HOME;
                     lcd_clear();
@@ -217,22 +219,61 @@ int main()
                     _delay_ms(2000);
                     lcd_clear();
                     lcd_screen(home_screen, INSTRN_SCRN_HT);
+                    _delay_ms(3000);
                     update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN, 1);
                 }
             }
         }
+        else if(state == BEST_CONDITIONS)
+        {
+            if(data_point_count >= 100)
+            {
+                /* Print out instructions */
+                lcd_clear();
+                lcd_screen(home_screen, INSTRN_SCRN_HT);
+                op_conditions = optimize100(eeprom_internal_addr - READ_LEN * 100)
+                _delay_ms(3000);
+                lcd_clear();
+
+                /* Print out best conditions */
+            }
+            else
+            {
+                /* Not enough data points */
+                lcd_moveto(1,0);
+                lcd_stringout(" DATA NOT AVAILABLE ");
+                lcd_stringout("MORE DATA PTS NEEDED");
+                _delay_ms(3000);
+
+                /* Go back to home */
+                state = HOME;
+                lcd_clear();
+                lcd_screen(home_screen, INSTRN_SCRN_HT);
+                _delay_ms(3000);
+                update_menu(options_menu, &options_menu_ind, OPT_MENU_LEN, 1);
+            }
+        }
+        else if(state == SEE_WARNINGS)
+        {
+
+        }
+        else
+        {
+            /* Should never get here */
+        }
+
 
         /*******************
             OUTPUT LOGIC
          *******************/
         /* turn on heaters or fans to change internal temperataure */
-        if(system_data.temp_in_int < op_conditions.temp_in_int - DELTA_TEMP)
+        if(system_data.temp_in_int < user_define_conditions.temp_in_int - DELTA_TEMP)
         {
             // turn on heaters
             PORTD |= (1 << HEAT_OUT1);
             PORTB |= (1 << HEAT_OUT2);
         }
-        else if(system_data.temp_in_int > op_conditions.temp_in_int + DELTA_TEMP)
+        else if(system_data.temp_in_int > user_define_conditions.temp_in_int + DELTA_TEMP)
         {
             // turn on fans
             // maybe make this pwm? idk
@@ -255,6 +296,7 @@ int main()
         if(eeprom_timer_count == 720)
         {
             eeprom_timer_count = 0;
+            data_point_count++;
             // Save to EEPROM
             get_samples();
             save_data_to_eeprom();
