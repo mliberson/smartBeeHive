@@ -2,7 +2,7 @@
 #include <util/delay.h>
 #include <stdio.h>
 #include <string.h>
-#include "eeprom.h"
+#include "..\eeprom\eeprom.h"
 #include "..\data.h"
 #include "optimize.h"
 
@@ -78,8 +78,7 @@ Data average(Data d1, Data d2)
 
 Data convert(char* eeprom_data)
 {
-    Data retD[10];
-    unsigned char i,j;
+    Data retD;
  
     retD.uv = 100*(eeprom_data[0] + '0') + 10*(eeprom_data[1] + '0') + (eeprom_data[2] + '0');
     retD.temp_in_int = 100*(eeprom_data[4] + '0') + 10*(eeprom_data[5] + '0') + (eeprom_data[6] + '0');
@@ -92,6 +91,7 @@ Data convert(char* eeprom_data)
     retD.hum_out_dec = 100*(eeprom_data[32] + '0') + 10*(eeprom_data[33] + '0') + (eeprom_data[34] + '0');
     retD.weight = 100*(eeprom_data[36] + '0') + 10*(eeprom_data[37] + '0') + (eeprom_data[38] + '0');
     
+    return retD;
 }
 
 unsigned char maxFinder100() 
