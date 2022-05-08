@@ -114,8 +114,12 @@ int main()
     /* Set initial thermostat value */
     user_define_conditions.temp_in_int = set_temp_val;
 
-    data_point_count = read_eeprom(SAMPLE_CNT_ADDR, 4);
-    eeprom_internal_addr = read_eeprom(EEPROM_WRT_ADDR, 4);
+    /* Upload previous data point count and eeprom write address */
+    char* buffer;
+    buffer = read_eeprom(SAMPLE_CNT_ADDR, 10);
+    sscanf(buffer, "%d", &data_point_count);
+    buffer = read_eeprom(EEPROM_WRT_ADDR, 10);
+    sscanf(buffer, "%d", &eeprom_internal_addr);
 
     while(1)
     {
@@ -401,17 +405,6 @@ int main()
             warning_state[TEMP] = NONE;
         }
 
-<<<<<<< HEAD
-        // add a flag so it will only happen once per period
-        if((eeprom_timer_count % 5) == 0)
-        {
-            lcd_clear();
-            lcd_moveto(1,0);
-            lcd_stringout("   Getting Sample   ");
-            get_samples();
-            lcd_moveto(1,0);
-            lcd_stringout("   Sample Acquired  ");
-=======
         if(system_data.hum_in_int > MAX_HUM)
         {
             warning_state[HUM] = HIGH;
@@ -435,7 +428,6 @@ int main()
         else
         {
             warning_state[UV] = NONE;
->>>>>>> 96f7d988b867e4f2cddc2a743816a59534c46715
         }
 
         num_warnings = 0;
@@ -452,21 +444,18 @@ int main()
             num_warnings++;
         }
 
-        if(((eeprom_timer_count % 10) == 0) && timer_flag)
+        if(((eeprom_timer_count % 3) == 0) && timer_flag)
         {
             get_samples();
             timer_flag = 0;
             
-            if((eeprom_timer_count % 100) == 0) 
+            if((eeprom_timer_count % 3) == 0) 
             {
-                unsigned char i;
-                for(i = 0; i < 100; i++) {
-                    save_data_to_eeprom();
-                    /*Save to EEPROM every hour */
-                    eeprom_timer_count = 0;
-                    data_point_count++;
-                    // Save to EEPROM
-                }
+                save_data_to_eeprom();
+                /*Save to EEPROM every hour */
+                eeprom_timer_count = 0;
+                data_point_count++;
+                // Save to EEPROM
             }
         }
 
@@ -573,11 +562,7 @@ void get_samples()
 /* create_readings_menu - creates the char array menu with the
     most recent sensor readings
 */
-<<<<<<< HEAD
-void create_readings_menu(struct Data *data)
-=======
 void create_readings_menu(struct Data* data)
->>>>>>> 96f7d988b867e4f2cddc2a743816a59534c46715
 {
     int i;
     /* Reduce memory leaks by freeing previous reading menu strings */
@@ -591,25 +576,6 @@ void create_readings_menu(struct Data* data)
     reading_menu[0] = malloc(strlen(buf1)+1);
     strcpy(reading_menu[0],buf1);
     /* Setup Internal Temperature string */
-<<<<<<< HEAD
-    sprintf(buf2, "Inside Temp:%4d.%d C", data->temp_in_int, data->temp_in_dec);
-    reading_menu[1] = malloc(strlen(buf2)+1);
-    strcpy(reading_menu[1], buf2);
-    /* Setup External Temperature string */
-    sprintf(buf3, "Outside Temp:%3d.%d C", data->temp_out_int, data->temp_out_dec);
-    reading_menu[2] = malloc(strlen(buf3)+1);
-    strcpy(reading_menu[2], buf3);
-    /* Setup Internal Humidity String */
-    sprintf(buf4, "Inside RH:%6d.%d %%", data->hum_in_int, data->hum_in_dec);
-    reading_menu[3] = malloc(strlen(buf4)+1);
-    strcpy(reading_menu[3], buf4);
-    /* Setup External Humidity String */
-    sprintf(buf5, "Outside RH:%5d.%d %%", data->hum_out_int, data->hum_out_dec);
-    reading_menu[4] = malloc(strlen(buf5)+1);
-    strcpy(reading_menu[4], buf5);
-    /* Setup Weight string */
-    sprintf(buf6, "Weight:%7d grams", data->weight);
-=======
     sprintf(buf2, "Inside Temp:%4d.%d C", system_data.temp_in_int, data->temp_in_dec);
     reading_menu[1] = malloc(strlen(buf2)+1);
     strcpy(reading_menu[1], buf2);
@@ -627,7 +593,6 @@ void create_readings_menu(struct Data* data)
     strcpy(reading_menu[4], buf5);
     /* Setup Weight string */
     sprintf(buf6, "Weight: %10d g", data->weight);
->>>>>>> 96f7d988b867e4f2cddc2a743816a59534c46715
     reading_menu[5] = malloc(strlen(buf6)+1);
     strcpy(reading_menu[5], buf6);
 }
@@ -685,6 +650,13 @@ void save_data_to_eeprom()
     sprintf(buf, "%03d", system_data.weight);
     write_eeprom(buf, eeprom_internal_addr);
     eeprom_internal_addr += 4;
+
+    /* Write current write address and # of data pts to eeprom */
+    char buffer[10];
+    sprintf(buffer, "%010d", eeprom_internal_addr);
+    write_eeprom(buffer, EEPROM_WRT_ADDR);
+    sprintf(buffer, "%010d", data_point_count);
+    write_eeprom(buffer, SAMPLE_CNT_ADDR);
 
     /* Handle case of writing past 32KB boundary */
     if(eeprom_internal_addr > 32000)
