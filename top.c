@@ -388,7 +388,6 @@ int main()
             PORTD &= ~(1 << HEAT_OUT1);
             PORTB &= ~(1 << HEAT_OUT2);
             // turn on fans
-            // maybe make this pwm? idk
             PORTD |= (1 << FAN_OUT1);
             PORTB |= (1 << FAN_OUT2);
 
@@ -405,6 +404,7 @@ int main()
             warning_state[TEMP] = NONE;
         }
 
+        /* Check for warnings and record them if they occur */
         if(system_data.hum_in_int > MAX_HUM)
         {
             warning_state[HUM] = HIGH;
@@ -444,12 +444,13 @@ int main()
             num_warnings++;
         }
 
-        if(((eeprom_timer_count % 3) == 0) && timer_flag)
+        /* Get samples every minute and record them in eEPROM once an hour */
+        if(((eeprom_timer_count % 20) == 0) && timer_flag)
         {
             get_samples();
             timer_flag = 0;
             
-            if((eeprom_timer_count % 3) == 0) 
+            if((eeprom_timer_count % 720) == 0) 
             {
                 save_data_to_eeprom();
                 /*Save to EEPROM every hour */

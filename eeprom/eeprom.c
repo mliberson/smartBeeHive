@@ -1,3 +1,5 @@
+/* code derived from Allan Weber's codebase for EE 467 */
+
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stdio.h>

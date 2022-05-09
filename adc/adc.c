@@ -5,6 +5,7 @@
 #include <avr/io.h>
 #include "adc.h"
 
+/* adc_init - Initializes the adc module */
 void adc_init(void)
 {
     ADMUX |= (1 << REFS0);          // Set high voltage reference = VCC
@@ -13,6 +14,7 @@ void adc_init(void)
     ADCSRA |= (1 << ADEN);          // Enable the ADC
 }
 
+/* adc_sample - allows the user to poll for an adc value from a specified channel */
 unsigned char adc_sample(unsigned char channel)
 {
     ADMUX &= ~ADC_MASK;                         // Clear out mux bits
